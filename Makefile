@@ -9,36 +9,39 @@ IDRISFLAGS_NONJS = -i $(BUILDDIR)/src/idris -p effects
 IDRISFLAGS = $(IDRISFLAGS_NONJS) --codegen javascript
 NODEJS = nodejs
 
-.PHONY: all clean html nonjs run-nonjs run check-nonjs check $(BUILDDIR)/src
+.PHONY: all clean html nonjs run-nonjs run check-nonjs check
 
 all: $(FINDIR)/contrivertext.js
 
 $(BUILDDIR):
 	mkdir -p $@
 
-$(BUILDDIR)/src: $(BUILDDIR) $(SRCDIR)
-	rsync -rupE $(SRCDIR)/ $@
+# thanks to http://stackoverflow.com/questions/3100776/how-to-copy-a-directory-in-a-makefile/3100872#3100872
+SRC_FILES := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/src/%,$(shell find $(SRCDIR) -type f))
+$(BUILDDIR)/src/%: $(SRCDIR)/%
+	mkdir -p $(@D)
+	cp $< $@
 
-$(BUILDDIR)/ContriverText_doc: $(BUILDDIR)/src
+$(BUILDDIR)/ContriverText_doc: $(SRC_FILES)
 	cd $(BUILDDIR) && $(IDRIS) --mkdoc src/idris/contrivertext.ipkg
 
-$(BUILDDIR)/contrivertext-tests: $(BUILDDIR)/src
-	$(IDRIS) $</test/Main.idr -o $@ $(IDRISFLAGS_NONJS)
+$(BUILDDIR)/contrivertext-tests: $(SRC_FILES)
+	$(IDRIS) $(BUILDDIR)/src/test/Main.idr -o $@ $(IDRISFLAGS_NONJS)
 
-$(BUILDDIR)/contrivertext-tests.js: $(BUILDDIR)/src
-	$(IDRIS) $</test/Main.idr -o $@ $(IDRISFLAGS)
+$(BUILDDIR)/contrivertext-tests.js: $(SRC_FILES)
+	$(IDRIS) $(BUILDDIR)/src/test/Main.idr -o $@ $(IDRISFLAGS)
 
 $(FINDIR):
 	mkdir -p $@
 
 $(FINDIR)/html: $(BUILDDIR)/ContriverText_doc $(FINDIR)
-	rsync -rupE $</ $@
+	rsync -urtpE $</ $@
 
-$(FINDIR)/contrivertext: $(BUILDDIR)/src $(FINDIR)
-	$(IDRIS) $</main/Main.idr -o $@ $(IDRISFLAGS_NONJS)
+$(FINDIR)/contrivertext: $(SRC_FILES) $(FINDIR)
+	$(IDRIS) $(BUILDDIR)/src/main/Main.idr -o $@ $(IDRISFLAGS_NONJS)
 
-$(FINDIR)/contrivertext.js: $(BUILDDIR)/src $(FINDIR)
-	$(IDRIS) $</main/Main.idr -o $@ $(IDRISFLAGS)
+$(FINDIR)/contrivertext.js: $(SRC_FILES) $(FINDIR)
+	$(IDRIS) $(BUILDDIR)/src/main/Main.idr -o $@ $(IDRISFLAGS)
 
 clean:
 	rm -rf $(BUILDDIR)/ContriverText_doc
