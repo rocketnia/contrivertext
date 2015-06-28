@@ -4,10 +4,12 @@ SHELL = /bin/sh
 SRCDIR = src
 FINDIR = fin
 BUILDDIR = build
+
 IDRIS = idris
+NODEJS = nodejs
+
 IDRISFLAGS_NONJS = -i $(BUILDDIR)/src/idris -p effects
 IDRISFLAGS = $(IDRISFLAGS_NONJS) --codegen javascript
-NODEJS = nodejs
 
 .PHONY: all clean html nonjs run-nonjs run check-nonjs check
 
@@ -58,11 +60,11 @@ run-nonjs: $(FINDIR)/contrivertext
 	$<
 
 run: $(FINDIR)/contrivertext.js
-	nodejs $<
+	$(NODEJS) $<
 
 check-nonjs: $(BUILDDIR)/contrivertext-tests
 	$<
 
 check: $(BUILDDIR)/contrivertext-tests.js
-	nodejs $<
+	$(NODEJS) $<
 
