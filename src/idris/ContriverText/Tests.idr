@@ -1,5 +1,6 @@
 module ContriverText.Tests
 
+import Data.SortedSet
 import Effects
 import Effect.System
 import Language.Reflection
@@ -33,6 +34,9 @@ someLocalVars = proof
 runTests : IO ()
 runTests = do
   putStrLn ("Hello tests " ++ show (myInc 4000))
+  putStrLn
+    ("Number of facts in the initial story state " ++
+       show (length (Data.SortedSet.toList initialStoryState)))
   putStrLn (show someLocalVars)
   -- NOTE: This will only work in a non-JS build.
 --  putStrLn (show !(run time))

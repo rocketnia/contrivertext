@@ -8,7 +8,7 @@ BUILDDIR = build
 IDRIS = idris
 NODEJS = nodejs
 
-IDRISFLAGS_NONJS = -i $(BUILDDIR)/src/idris -p effects
+IDRISFLAGS_NONJS = -i $(BUILDDIR)/src/idris -p contrib -p effects
 IDRISFLAGS = $(IDRISFLAGS_NONJS) --codegen javascript
 
 .PHONY: all clean html nonjs run-nonjs run check-nonjs check
