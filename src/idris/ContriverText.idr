@@ -50,9 +50,11 @@ instance Eq TemporalFact where
 
 instance Ord TemporalFact where
   compare (MkTemporalFact s1 e1 f1) (MkTemporalFact s2 e2 f2) =
-    compare s1 s2 `orOrd`
-    (compare e1 e2 `orOrd`
-    compare f1 f2)
+    foldl orOrd EQ [
+      compare s1 s2,
+      compare e1 e2,
+      compare f1 f2
+    ]
 
 StoryState : Type
 StoryState = SortedSet TemporalFact
