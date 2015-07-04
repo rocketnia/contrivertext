@@ -8,8 +8,7 @@ BUILDDIR = build
 IDRIS = idris
 NODEJS = nodejs
 
-IDRISFLAGS_NONJS = -i $(BUILDDIR)/src/idris -p contrib -p effects
-IDRISFLAGS = $(IDRISFLAGS_NONJS) --codegen javascript
+IDRISFLAGS = -i $(BUILDDIR)/src/idris -p contrib -p effects
 
 .PHONY: all clean html nonjs run-nonjs run check-nonjs check
 
@@ -28,10 +27,10 @@ $(BUILDDIR)/ContriverText_doc: $(SRC_FILES)
 	cd $(BUILDDIR) && $(IDRIS) --mkdoc src/idris/contrivertext.ipkg
 
 $(BUILDDIR)/contrivertext-tests: $(SRC_FILES)
-	$(IDRIS) $(BUILDDIR)/src/test/Main.idr -o $@ $(IDRISFLAGS_NONJS)
+	$(IDRIS) $(BUILDDIR)/src/test/Main.idr -o $@ $(IDRISFLAGS)
 
 $(BUILDDIR)/contrivertext-tests.js: $(SRC_FILES)
-	$(IDRIS) $(BUILDDIR)/src/test/Main.idr -o $@ $(IDRISFLAGS)
+	$(IDRIS) $(BUILDDIR)/src/test/Main.idr -o $@ $(IDRISFLAGS) --codegen node
 
 $(FINDIR):
 	mkdir -p $@
@@ -40,10 +39,10 @@ $(FINDIR)/html: $(BUILDDIR)/ContriverText_doc $(FINDIR)
 	rsync -urtpE $</ $@
 
 $(FINDIR)/contrivertext: $(SRC_FILES) $(FINDIR)
-	$(IDRIS) $(BUILDDIR)/src/main/Main.idr -o $@ $(IDRISFLAGS_NONJS)
+	$(IDRIS) $(BUILDDIR)/src/main/Main.idr -o $@ $(IDRISFLAGS)
 
 $(FINDIR)/contrivertext.js: $(SRC_FILES) $(FINDIR)
-	$(IDRIS) $(BUILDDIR)/src/main/Main.idr -o $@ $(IDRISFLAGS)
+	$(IDRIS) $(BUILDDIR)/src/main/Main.idr -o $@ $(IDRISFLAGS) --codegen javascript
 
 clean:
 	rm -rf $(BUILDDIR)/ContriverText_doc
