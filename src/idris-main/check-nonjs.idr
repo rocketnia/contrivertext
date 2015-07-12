@@ -3,4 +3,4 @@ module Main
 import ContriverText.Tests
 
 main : IO ()
-main = appMain
+main = testMain {f=FFI_C}
