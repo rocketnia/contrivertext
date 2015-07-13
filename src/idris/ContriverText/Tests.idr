@@ -3,10 +3,9 @@ module ContriverText.Tests
 import Data.SortedSet
 import Effects
 import Effect.System
-import Language.Reflection
 
 import ContriverText
-
+import ContriverText.JsUtil
 
 quoteListOfStrings : List String -> TT
 quoteListOfStrings [] = `([] : List String)
@@ -41,28 +40,28 @@ runTests = do
   -- NOTE: This will only work in a non-JS build.
 --  putStrLn (show !(run time))
 
--- This is based on jscall from
--- <http://docs.idris-lang.org/en/latest/reference/ffi.html>.
-%inline
-js : (t : Type) -> (code : String) ->
-  {auto foreignType : FTy FFI_JS [] t} -> t
-js t code = foreign FFI_JS code t
-
 runJsTests : JS_IO ()
 runJsTests = do
-  js (JS_IO ()) """
+  jsf0 """
     console.log( "hello" )
   """
-  let foo = js (Int -> Int -> JS_IO ()) """
+  let foo = jsft (Int -> Int -> JS_IO ()) """
     console.log( "heya " + (%0 + %1) )
   """
   foo 5 6
-  foo2 <- js (JS_IO Ptr) """function (a, b) {
+  foo2 <- jsf0 """function (a, b) {
     console.log( "heya2 " + (a + b) )
   }"""
-  js (Ptr -> Int -> Int -> JS_IO ()) """
+  jsft (Ptr -> Int -> Int -> JS_IO ()) """
     %0( %1, %2 )
   """ foo2 5 6
+  jsc2 foo2 !(jsint 5) !(jsint 10)
+  jsm1 !(jsf0 "console") "log"
+    !(jsm1 !(jsf0 "JSON") "stringify"
+        !(jso2_p
+            "foo" !(jsint 1)
+            "bar" !(jsint 2)))
+  return ()
 
 testMain : {auto f : FFI} -> IO' f ()
 testMain = do
