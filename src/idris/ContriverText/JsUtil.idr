@@ -189,28 +189,71 @@ jse3_f k0 v0 k1 v1 k2 v2 code =
     v0 v1 v2
 
 -- The a is for "Array."
--- The _p is for "sensitive to (p)rototype clobbering."
-jsa_p : List Ptr -> JS_IO Ptr
-jsa_p elements = do
+-- The _i is for "sensitive to (i)nitial value clobbering."
+jsa_i : List Ptr -> JS_IO Ptr
+jsa_i elements = do
   result <- jsa0
   for_ elements $ \element =>
     jsm1 result "push" element
   return result
 
 -- The o is for "object."
--- The _p is for "sensitive to (p)rototype clobbering."
-jso_p : SortedMap String Ptr -> JS_IO Ptr
-jso_p elements = do
+-- The _i is for "sensitive to (i)nitial value clobbering."
+jso_i : SortedMap String Ptr -> JS_IO Ptr
+jso_i elements = do
   result <- jso0
   for_ {b=()} (Data.SortedMap.toList elements) $ \(k, v) => do
     jsp result k v
   return result
 
-jso1_p : String -> Ptr -> JS_IO Ptr
-jso1_p k0 v0 = jso_p (dic1 k0 v0)
+jso1_i : String -> Ptr -> JS_IO Ptr
+jso1_i k0 v0 = jso_i (dic1 k0 v0)
 
-jso2_p : String -> Ptr -> String -> Ptr -> JS_IO Ptr
-jso2_p k0 v0 k1 v1 = jso_p (dic2 k0 v0 k1 v1)
+jso2_i : String -> Ptr -> String -> Ptr -> JS_IO Ptr
+jso2_i k0 v0 k1 v1 = jso_i (dic2 k0 v0 k1 v1)
 
-jso3_p : String -> Ptr -> String -> Ptr -> String -> Ptr -> JS_IO Ptr
-jso3_p k0 v0 k1 v1 k2 v2 = jso_p (dic3 k0 v0 k1 v1 k2 v2)
+jso3_i : String -> Ptr -> String -> Ptr -> String -> Ptr -> JS_IO Ptr
+jso3_i k0 v0 k1 v1 k2 v2 = jso_i (dic3 k0 v0 k1 v1 k2 v2)
+
+jsfn0 : JS_IO Ptr -> JS_IO Ptr
+jsfn0 f = jsft (JsFn (() -> Ptr) -> JS_IO Ptr) """
+  %0
+""" (MkJsFn (\() => unsafePerformIO f))
+
+jsfn1 : (Ptr -> JS_IO Ptr) -> JS_IO Ptr
+jsfn1 f = jsft (JsFn (Ptr -> Ptr) -> JS_IO Ptr) """
+  %0
+""" (MkJsFn (\a0 => unsafePerformIO (f a0)))
+
+-- NOTE: Surprisingly, this definition of jsfn2 receives both
+-- arguments and sucessfully performs its side effects, but it doesn't
+-- succeed at returning its esult.
+{-
+jsfn2 : (Ptr -> Ptr -> JS_IO Ptr) -> JS_IO Ptr
+jsfn2 f = jsft (JsFn (Ptr -> Ptr -> Ptr) -> JS_IO Ptr) """
+  %0
+""" (MkJsFn (\a0, a1 => unsafePerformIO (f a0 a1)))
+-}
+
+jsfn2_f : (Ptr -> Ptr -> JS_IO Ptr) -> JS_IO Ptr
+jsfn2_f f = jse1_f
+  "f" !(jsfn1 $ \args =>
+          f !(jsg args !(jsint 0)) !(jsg args !(jsint 1)))
+  """
+    return function ( var_args ) {
+        return f( arguments );
+    };
+  """
+
+jsfn3_f : (Ptr -> Ptr -> Ptr -> JS_IO Ptr) -> JS_IO Ptr
+jsfn3_f f = jse1_f
+  "f" !(jsfn1 $ \args =>
+          f !(jsg args !(jsint 0))
+            !(jsg args !(jsint 1))
+            !(jsg args !(jsint 2)))
+  """
+    return function ( var_args ) {
+        return f( arguments );
+    };
+  """
+
