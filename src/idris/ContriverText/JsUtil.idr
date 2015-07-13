@@ -227,7 +227,7 @@ jsfn1 f = jsft (JsFn (Ptr -> Ptr) -> JS_IO Ptr) """
 
 -- NOTE: Surprisingly, this definition of jsfn2 receives both
 -- arguments and sucessfully performs its side effects, but it doesn't
--- succeed at returning its esult.
+-- succeed at returning its result.
 {-
 jsfn2 : (Ptr -> Ptr -> JS_IO Ptr) -> JS_IO Ptr
 jsfn2 f = jsft (JsFn (Ptr -> Ptr -> Ptr) -> JS_IO Ptr) """
