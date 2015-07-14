@@ -8,7 +8,7 @@ import ContriverText.Util
 -- This is based on jscall from
 -- <http://docs.idris-lang.org/en/latest/reference/ffi.html>.
 %inline
-jsft : (t : Type) -> String -> {auto foreignType : FTy FFI_JS [] t} -> t
+jsft : (t : Type) -> String -> {auto fty : FTy FFI_JS [] t} -> t
 jsft t code = foreign FFI_JS code t
 
 class HasJsPtr a where
@@ -181,7 +181,7 @@ jse3_f :
   String -> Ptr ->
   String -> Ptr ->
   String -> Ptr ->
-  String -> JS_IO Ptr
+    String -> JS_IO Ptr
 jse3_f k0 v0 k1 v1 k2 v2 code =
   jsc3
     !(jsc4 !(jsf0 "Function")
@@ -214,6 +214,14 @@ jso2_i k0 v0 k1 v1 = jso_i (dic2 k0 v0 k1 v1)
 
 jso3_i : String -> Ptr -> String -> Ptr -> String -> Ptr -> JS_IO Ptr
 jso3_i k0 v0 k1 v1 k2 v2 = jso_i (dic3 k0 v0 k1 v1 k2 v2)
+
+jso4_i :
+  String -> Ptr ->
+  String -> Ptr ->
+  String -> Ptr ->
+  String -> Ptr ->
+    JS_IO Ptr
+jso4_i k0 v0 k1 v1 k2 v2 k3 v3 = jso_i (dic3 k0 v0 k1 v1 k2 v2 k3 v3)
 
 jsfn0 : JS_IO Ptr -> JS_IO Ptr
 jsfn0 f = jsft (JsFn (() -> Ptr) -> JS_IO Ptr) """
