@@ -221,7 +221,7 @@ jso4_i :
   String -> Ptr ->
   String -> Ptr ->
     JS_IO Ptr
-jso4_i k0 v0 k1 v1 k2 v2 k3 v3 = jso_i (dic3 k0 v0 k1 v1 k2 v2 k3 v3)
+jso4_i k0 v0 k1 v1 k2 v2 k3 v3 = jso_i (dic4 k0 v0 k1 v1 k2 v2 k3 v3)
 
 jsfn0 : JS_IO Ptr -> JS_IO Ptr
 jsfn0 f = jsft (JsFn (() -> Ptr) -> JS_IO Ptr) """

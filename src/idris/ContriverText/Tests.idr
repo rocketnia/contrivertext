@@ -182,40 +182,41 @@ runJsTests = do
     };
   """ !(jsa_i $ for (
     Data.SortedSet.toList initialStoryState
-  ) (\MkTemporalFact (MkStartTime startTime) endTime fact => jso3_i
-    "startTime" !(jsint $ toInt startTime)
-    "endTime"
-      !(case endTime of
-          KnownEndTime time => jso2_i
-            "type" !(jsptr "knownEndTime")
-            "time" !(jsint $ toInt time)
-          AssumeAfter time assumption => jso3_i
-            "type" !(jsptr "assumeAfter")
-            "time" !(jsint $ toInt time)
-            "assumption"
-              (if assumption then !(jsf0 "true") !(jsf0 "false")))
-    "fact"
-      !(case fact of
-          ExistsPov pov => jso2_i
-            "type" !(jsptr "existsPov")
-            "pov" !(jsptr pov)
-          ExistsTopic topic => jso2_i
-            "type" !(jsptr "existsTopic")
-            "topic" !(jsptr topic)
-          Describes pov topic (MkHtextBlocks desc) => jso3_i
-            "type" !(jsptr "describes")
-            "pov" !(jsptr pov)
-            "topic" !(jsptr topic)
-            "desc"
-              !(jsa_i $ for desc $ \MkHtextBlock para =>
-                  jsa_i $ for para $ \MkHtextSpan maybeLink text =>
-                    jso2_i
-                      "link"
-                        !(case maybeLink of
-                            MyNothing => jsf0 "null"
-                            MyJust topic =>
-                              jso1_i "val" !(jsptr topic))
-                      "text" text))
+  ) (\(MkTemporalFact (MkStartTime startTime) endTime fact) =>
+    jso3_i
+      "startTime" !(jsint $ toInt startTime)
+      "endTime"
+        !(case endTime of
+            KnownEndTime time => jso2_i
+              "type" !(jsptr "knownEndTime")
+              "time" !(jsint $ toInt time)
+            AssumeAfter time assumption => jso3_i
+              "type" !(jsptr "assumeAfter")
+              "time" !(jsint $ toInt time)
+              "assumption"
+                (ifThenElse assumption !(jsf0 "true") !(jsf0 "false")))
+      "fact"
+        !(case fact of
+            ExistsPov pov => jso2_i
+              "type" !(jsptr "existsPov")
+              "pov" !(jsptr pov)
+            ExistsTopic topic => jso2_i
+              "type" !(jsptr "existsTopic")
+              "topic" !(jsptr topic)
+            Describes pov topic (MkHtextBlocks desc) => jso3_i
+              "type" !(jsptr "describes")
+              "pov" !(jsptr pov)
+              "topic" !(jsptr topic)
+              "desc"
+                !(jsa_i $ for desc $ \(MkHtextBlock para) =>
+                    jsa_i $ for para $ \(MkHtextSpan maybeLink text) =>
+                      jso2_i
+                        "link"
+                          !(case maybeLink of
+                              MyNothing => jsf0 "null"
+                              MyJust topic =>
+                                jso1_i "val" !(jsptr topic))
+                        "text" text))
   ))
   return ()
 
