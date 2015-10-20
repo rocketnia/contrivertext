@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+<title>ContriverText demo</title>
+
+<style type="text/css">
+.contrivertext-book {
+    position: relative;
+    width: 600px;
+    height: 400px;
+    font-family: sans-serif;
+    font-size: 14px;
+}
+.contrivertext-book a {
+    text-decoration: none;
+    font-weight: bold;
+    color: #88995c;
+}
+.contrivertext-book p {
+    margin-top: 0;
+}
+.contrivertext-book > .here-pane {
+    position: absolute;
+    top: 26px;
+    left: 0;
+    right: 50%;
+    bottom: 0;
+    padding: 10px;
+    border: 1px solid #bcae66;
+    background: #f0eacd;
+}
+.contrivertext-book > .focus-pane {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    right: 0;
+    bottom: 0;
+}
+.contrivertext-book > .focus-pane > ul.focus-tabs {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 26px;
+    margin: 0;
+    padding-left: 10px;
+}
+.contrivertext-book > .focus-pane > ul.focus-tabs > li {
+    display: inline-block;
+    height: 24px;
+    list-style: none;
+    background: #e0d8b4;
+    border: 1px solid #bcae66;
+    margin: 1px 0 -1px -4px;
+    border-radius: 10px 10px 0 0;
+    border-radius: 10px 10px 0 0 / 20px 20px 0 0;
+}
+.contrivertext-book > .focus-pane > ul.focus-tabs > li.active {
+    display: inline-block;
+    position: relative;
+    z-index: 1;
+    list-style: none;
+    background: #f0eacd;
+    border: 1px solid #bcae66;
+    border-bottom: 1px solid #f0eacd;
+}
+.contrivertext-book > .focus-pane > ul.focus-tabs > li > a {
+    padding: 10px;
+    color: #000000;
+    font-weight: normal;
+    line-height: 27px;
+}
+.contrivertext-book > .focus-pane > .focus-content {
+    position: absolute;
+    top: 26px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid #bcae66;
+    padding: 10px;
+    background: #f0eacd;
+}
+</style>
+</head>
+<body>
+
+<div class="contrivertext-book">
+    <div id="here-pane" class="here-pane"></div>
+    <div class="focus-pane">
+        <ul id="focus-tabs" class="focus-tabs"></ul>
+        <div id="focus-content" class="focus-content"></div>
+    </div>
+</div>
+
+<script type="text/javascript" src="contrivertext.js"></script>
+</body>
+</html>
