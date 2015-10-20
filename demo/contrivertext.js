@@ -119,9 +119,7 @@ window.onload = function () {
         if ( !arrAny( currentFocusTabs, function ( tabTopic ) {
             return tabTopic === topic;
         } ) )
-            currentFocusTabs.unshift( topic );
-        if ( 10 < currentFocusTabs.length )
-            currentFocusTabs.pop();
+            currentFocusTabs.push( topic );
         setContent( focusEl, getDescription( topic ) );
         while ( focusTabsEl.hasChildNodes() )
             focusTabsEl.removeChild( focusTabsEl.firstChild );
@@ -134,6 +132,12 @@ window.onload = function () {
             tabEl.appendChild( tabLinkEl );
             focusTabsEl.appendChild( tabEl );
         } );
+        while ( focusTabsEl.firstChild.offsetTop !==
+            focusTabsEl.lastChild.offsetTop ) {
+            
+            focusTabsEl.removeChild( focusTabsEl.firstChild );
+            currentFocusTabs.shift();
+        }
     }
     setContent( hereEl, getDescription( "here" ) );
 };
