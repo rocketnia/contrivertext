@@ -88,6 +88,37 @@ function eventDispatcher() {
 }
 
 
+// ===== DSL parser ==================================================
+
+function dscPara( descCode ) {
+    var result = [];
+    var descRemaining = descCode;
+    var m;
+    while ( m =
+        /^([^\\\[\]]*)\[([^\\\[\] ]*) ([^\\\[\]]*)\](.*)$/.exec(
+            descRemaining ) ) {
+        
+        result.push( { link: null, text: m[ 1 ] } );
+        result.push( { link: { val: m[ 2 ] }, text: m[ 3 ] } );
+        descRemaining = m[ 4 ];
+    }
+    if ( !/^[^\\\[\]()]*$/.test( descRemaining ) )
+        throw new Error();
+    result.push( { link: null, text: descRemaining } );
+    return arrRem( result, function ( span ) {
+        return span.text.length === 0;
+    } );
+}
+
+function dsc( var_args ) {
+    return arrMap( arguments, function ( descCode ) {
+        return dscPara( descCode );
+    } );
+}
+
+
+// ===== ContriverText client ========================================
+
 function initContriverTextClientWidget(
     elements, pov, here, serverListenable, clientEmittable ) {
     
@@ -194,7 +225,7 @@ function initContriverTextClientWidget(
     function forceDescription( topic ) {
         var desc = getDescription( topic );
         return desc !== null ? desc :
-            [ [ { link: null, text: "((No description at the moment...))" } ] ];
+            dsc( "((No description at the moment...))" );
     }
     function setFocus( topic ) {
         currentFocus = topic;
@@ -203,8 +234,8 @@ function initContriverTextClientWidget(
     function updateUi() {
         
         setContent( elements.hereEl,
-            loadedFirstPrivy ? forceDescription( here ) : [ [] ] );
-//            [ [ { link: null, text: "((Loading...))" } ] ] );
+            loadedFirstPrivy ? forceDescription( here ) : dsc() );
+//            dsc( "((Loading...))" ) );
         
         function addTab( topic ) {
             var tabEl = document.createElement( "li" );
@@ -248,6 +279,9 @@ function initContriverTextClientWidget(
     updateUi();
 }
 
+
+// ===== ContriverText sample server =================================
+
 function sampleServer() {
     // TODO: Actually use this somehow.
     var worldState = {};
@@ -262,23 +296,17 @@ function sampleServer() {
             clientListenable.on( function ( event ) {
                 if ( event.type === "needsFullPrivy" ) {
                     serverEmittable.emit( { type: "fullPrivy", privy: arrMap( [
-                        { type: "describes", pov: "you", topic: "here", description: [ [
-                            { link: null, text: "You are here. There is a " },
-                            { link: { val: "thing" }, text: "thing" },
-                            { link: null, text: " here." }
-                        ] ] },
+                        { type: "describes", pov: "you", topic: "here", description: dsc(
+                            "You are here. There is a [thing thing] here."
+                        ) },
                         { type: "titles", pov: "you", topic: "thing", title: "Thing" },
-                        { type: "describes", pov: "you", topic: "thing", description: [ [
-                            { link: null, text: "The thing has a " },
-                            { link: { val: "feature" }, text: "feature" },
-                            { link: null, text: " on it." }
-                        ] ] },
+                        { type: "describes", pov: "you", topic: "thing", description: dsc(
+                            "The thing has a [feature feature] on it."
+                        ) },
                         { type: "titles", pov: "you", topic: "feature", title: "Feature" },
-                        { type: "describes", pov: "you", topic: "feature", description: [ [
-                            { link: null, text: "The feature of the " },
-                            { link: { val: "thing" }, text: "thing" },
-                            { link: null, text: " is nondescript." }
-                        ] ] }
+                        { type: "describes", pov: "you", topic: "feature", description: dsc(
+                            "The feature of the [thing thing] is nondescript."
+                        ) }
                     ], function ( fact ) {
                         return {
                             startTime: 0,
@@ -294,6 +322,9 @@ function sampleServer() {
     };
     return result;
 }
+
+
+// ===== ContriverText demo page logic ===============================
 
 window.onload = function () {
     var server = sampleServer();
