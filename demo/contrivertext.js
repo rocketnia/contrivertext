@@ -12,6 +12,14 @@ function arrAny( arr, check ) {
             return result;
     return false;
 }
+function arrAll( arr, check ) {
+    for ( var i = 0, n = arr.length; i < n; i++ ) {
+        var result = null;
+        if ( !(result = check( arr[ i ], i )) )
+            return result;
+    }
+    return true;
+}
 function arrEach( arr, body ) {
     for ( var i = 0, n = arr.length; i < n; i++ )
         body( arr[ i ], i );
@@ -86,6 +94,50 @@ function eventDispatcher() {
     };
     return result;
 }
+function isArray( x ) {
+    return {}.toString.call( x ) === "[object Array]";
+}
+function objHas( obj, k ) {
+    return {}.hasOwnProperty.call( obj, k );
+}
+function jsonIso( a, b ) {
+    // NOTE: This isn't exactly right. See Lathe.js for a more serious
+    // implementation. This just gets the job done.
+    
+    if ( a === b )
+        return true;
+    if ( isArray( a ) )
+        return isArray( b ) && a.length === b.length &&
+            arrAll( a, function ( aItem, i ) {
+                return jsonIso( aItem, b[ i ] );
+            } );
+    if ( typeof a === "object" ) {
+        if ( typeof b !== "object" )
+            return false;
+        for ( var k in a )
+            if ( objHas( a, k )
+                && !(objHas( b, k ) && jsonIso( a[ k ], b[ k ] )) )
+                return false;
+        for ( var k in b )
+            if ( objHas( b, k ) && !objHas( a, k ) )
+                return false;
+        return true;
+    }
+    return a === b;
+}
+function arrHasJson( arr, x ) {
+    return arrAny( arr, function ( item ) {
+        return jsonIso( item, x );
+    } );
+}
+function arrDedupJson( arr ) {
+    var result = [];
+    arrEach( arr, function ( item ) {
+        if ( !arrHasJson( result, item ) )
+            result.push( item );
+    } );
+    return result;
+}
 
 
 // ===== DSL parser ==================================================
@@ -102,7 +154,7 @@ function dscPara( descCode ) {
         result.push( { link: { val: m[ 2 ] }, text: m[ 3 ] } );
         descRemaining = m[ 4 ];
     }
-    if ( !/^[^\\\[\]()]*$/.test( descRemaining ) )
+    if ( !/^[^\\\[\]]*$/.test( descRemaining ) )
         throw new Error();
     result.push( { link: null, text: descRemaining } );
     return arrRem( result, function ( span ) {
@@ -138,7 +190,7 @@ function initContriverTextClientWidget(
     clientEmittable.emit( { type: "needsFullPrivy" } );
     
     
-    var currentFocus = null;
+    var currentFocus = "you";
     var currentFocusTabs = [];
     var currentTime = 0;
     function createFocusLink( topic ) {
@@ -150,9 +202,12 @@ function initContriverTextClientWidget(
         };
         return link;
     }
+    function clearDom( el ) {
+        while ( el.hasChildNodes() )
+            el.removeChild( el.firstChild );
+    }
     function setContent( containerEl, content ) {
-        while ( containerEl.hasChildNodes() )
-            containerEl.removeChild( containerEl.firstChild );
+        clearDom( containerEl );
         var innerContainerEl = document.createElement( "div" );
         arrEach( content, function ( para ) {
             var paraEl = document.createElement( "p" );
@@ -257,24 +312,33 @@ function initContriverTextClientWidget(
                 currentFocusTabs.shift();
             }
         }
-        while ( elements.focusTabsEl.hasChildNodes() )
-            elements.focusTabsEl.removeChild(
-                elements.focusTabsEl.firstChild );
+        clearDom( elements.focusTabsEl );
         arrEach( currentFocusTabs, function ( topic ) {
             addTab( topic );
         } );
         removeTabOverflow();
-        if ( currentFocus !== null
-            && !arrAny( currentFocusTabs, function ( tabTopic ) {
-                return tabTopic === currentFocus;
-            } ) ) {
+        if ( !arrHasJson( currentFocusTabs, currentFocus ) ) {
             currentFocusTabs.push( currentFocus );
             addTab( currentFocus );
         }
         removeTabOverflow();
-        setContent( elements.focusEl, currentFocus !== null ?
-            forceDescription( currentFocus ) :
-            [ [ ] ] );
+        setContent( elements.focusEl,
+            forceDescription( currentFocus ) );
+        
+        clearDom( elements.futureEl );
+        if ( loadedFirstPrivy )
+            arrEach( getCurrentFacts(), function ( rel ) {
+                if ( !(rel.type === "can" && rel.pov === pov) )
+                    return;
+                var button = document.createElement( "button" );
+                button.appendChild(
+                    document.createTextNode( "" + rel.label ) );
+                button.onclick = function () {
+                    clientEmittable.emit( { type: "act",
+                        actor: pov, action: rel.action } );
+                };
+                elements.futureEl.appendChild( button );
+            } );
     }
     updateUi();
 }
@@ -283,8 +347,208 @@ function initContriverTextClientWidget(
 // ===== ContriverText sample server =================================
 
 function sampleServer() {
-    // TODO: Actually use this somehow.
-    var worldState = {};
+    var initialWorldState = [];
+    var worldUpdates = [];
+    function addExits( dir1, dir2, room1, room2 ) {
+        initialWorldState.push( { type: "exit", direction: dir1,
+            from: room2, to: room1 } );
+        initialWorldState.push( { type: "exit", direction: dir2,
+            from: room1, to: room2 } );
+    }
+    initialWorldState.push( { type: "in-room", element: "you",
+        container: "southwest-room" } );
+    initialWorldState.push( { type: "in-room", element: "thing",
+        container: "southwest-room" } );
+    initialWorldState.push( { type: "in-room", element: "feature",
+        container: "southwest-room" } );
+    addExits( "w", "e", "northwest-room", "northeast-room" );
+    addExits( "w", "e", "southwest-room", "southeast-room" );
+    addExits( "n", "s",
+        "northwest-room",
+        "southwest-room" );
+    addExits( "n", "s",
+        "northeast-room",
+        "southeast-room" );
+    function getActionsPermitted( worldState ) {
+        return arrMappend( worldState, function ( rel1 ) {
+            if ( rel1.type === "in-room" ) {
+                return arrMappend( worldState, function ( rel2 ) {
+                    if ( rel2.type === "exit"
+                        && rel2.from === rel1.container ) {
+                        // NOTE: We reuse the exit relation as an
+                        // action. This might be too clever.
+                        return [
+                            { actor: rel1.element, action: rel2 } ];
+                    } else {
+                        return [];
+                    }
+                } );
+            } else {
+                return [];
+            }
+        } );
+    }
+    function actionIsPermitted( worldState, actor, action ) {
+        return arrHasJson( getActionsPermitted( worldState ),
+            { actor: actor, action: action } );
+    }
+    function actionToUpdate( worldState, actor, action ) {
+        if ( action.type === "exit" ) {
+            return { actor: actor, action: action, newWorldState:
+                arrRem( worldState, function ( rel ) {
+                    return rel.type === "in-room" &&
+                        rel.element === actor;
+                } ).concat( [ { type: "in-room", element: actor,
+                    container: action.to } ] ) };
+        } else {
+            throw new Error();
+        }
+    }
+    function getCurrentWorldState() {
+        return worldUpdates.length === 0 ? initialWorldState :
+            worldUpdates[ worldUpdates.length - 1 ].newWorldState;
+    }
+    function applyAction( actor, action ) {
+        var worldState = getCurrentWorldState();
+        if ( !actionIsPermitted( worldState, actor, action ) )
+            throw new Error();
+        worldUpdates.push(
+            actionToUpdate( worldState, actor, action ) );
+    }
+    function getVisibility( worldState, actor ) {
+        var rels = [];
+        var containers = [];
+        arrEach( worldState, function ( rel ) {
+            if ( rel.type === "in-room" && rel.element === actor ) {
+                containers.push( rel.container );
+                rels.push( rel );
+            }
+        } );
+        var topics = [ "here", actor ].concat( containers );
+        arrEach( worldState, function ( rel ) {
+            if ( rel.type === "in-room"
+                && rel.element !== actor
+                && arrHasJson( containers, rel.container ) ) {
+                
+                topics.push( rel.element );
+                rels.push( rel );
+            }
+        } );
+        return {
+            topics: topics,
+            worldState: rels,
+            actions: arrMappend( getActionsPermitted( worldState ),
+                function ( actionPermitted ) {
+                    return actionPermitted.actor === actor ?
+                        [ actionPermitted.action ] : [];
+                } )
+        };
+    }
+    var describers = {};
+    function defDescribe( room, describer ) {
+        describers[ "|" + room ] = describer;
+    }
+    function describe( actor, visibility, topic ) {
+        var describer = describers[ "|" + topic ];
+        return describer( actor, visibility );
+    }
+    function titleDsc( title, var_args ) {
+        return { title: title,
+            description:
+                dsc.apply( null, [].slice.call( arguments, 1 ) ) };
+    }
+    defDescribe( "here", function ( actor, visibility ) {
+        var firstRoom = arrAny( visibility.worldState,
+            function ( rel ) {
+            
+            return rel.type === "in-room" && rel.element === actor ?
+                { val: rel.container } : false;
+        } );
+        return { title: "Your surroundings",
+            description: firstRoom ?
+                describe( actor, visibility, firstRoom.val
+                    ).description :
+                dsc(
+                    "((You don't seem to be located anywhere right " +
+                    "now.))"
+                ) };
+    } );
+    defDescribe( "you", function ( actor, visibility ) {
+        return titleDsc( "You",
+            "You're wearing your adventuring clothes today." );
+    } );
+    defDescribe( "thing", function ( actor, visibility ) {
+        return titleDsc( "Thing",
+            "The thing has a [feature feature] on it." );
+    } );
+    defDescribe( "feature", function ( actor, visibility ) {
+        return titleDsc( "Feature",
+            "The feature of the [thing thing] is nondescript." );
+    } );
+    defDescribe( "northwest-room", function ( actor, visibility ) {
+        return titleDsc( "Northwest room",
+            "You're in [northwest-room the northwest room]." );
+    } );
+    defDescribe( "northeast-room", function ( actor, visibility ) {
+        return titleDsc( "Northeast room",
+            "You're in [northeast-room the northeast room]." );
+    } );
+    defDescribe( "southwest-room", function ( actor, visibility ) {
+        return titleDsc( "Southwest room",
+            "You're in [southwest-room the southwest room].",
+            "There is a [thing thing] here." );
+    } );
+    defDescribe( "southeast-room", function ( actor, visibility ) {
+        return titleDsc( "Southeast room",
+            "You're in [southeast-room the southeast room]." );
+    } );
+    
+    function visibilityToPrivy( actor, visibility ) {
+        var facts = arrMappend( visibility.topics,
+            function ( topic ) {
+            
+            var details = describe( actor, visibility, topic );
+            return [
+                { type: "titles", pov: actor, topic: topic,
+                    title: details.title },
+                { type: "describes", pov: actor, topic: topic,
+                    description: details.description }
+            ];
+        } ).concat( arrMap( visibility.actions, function ( action ) {
+            // TODO: The "can" type carries more information than the
+            // client strictly needs, and yet it doesn't necessarily
+            // contain a good source of information from which to
+            // determine a compass rose. Iterate further upon this
+            // design.
+            
+            if ( action.type === "exit" ) {
+                if ( action.direction === "n" ) {
+                    var label = "Go north.";
+                } else if ( action.direction === "s" ) {
+                    var label = "Go south.";
+                } else if ( action.direction === "e" ) {
+                    var label = "Go east.";
+                } else if ( action.direction === "w" ) {
+                    var label = "Go west.";
+                } else {
+                    throw new Error();
+                }
+            } else {
+                throw new Error();
+            }
+            return { type: "can",
+                pov: actor, label: label, action: action };
+        } ) );
+        return arrMap( facts, function ( fact ) {
+            return {
+                startTime: 0,
+                endTime: { type: "assumeAfter",
+                    time: 10, assumption: true },
+                fact: fact
+            };
+        } );
+    }
+    
     
     var result = {};
     result.you = "you";
@@ -294,26 +558,18 @@ function sampleServer() {
         
         if ( you === "you" ) {
             clientListenable.on( function ( event ) {
+                function emitFullPrivy() {
+                    serverEmittable.emit( { type: "fullPrivy",
+                        privy: visibilityToPrivy( "you",
+                            getVisibility( getCurrentWorldState(),
+                                "you" ) ) } );
+                }
+                
                 if ( event.type === "needsFullPrivy" ) {
-                    serverEmittable.emit( { type: "fullPrivy", privy: arrMap( [
-                        { type: "describes", pov: "you", topic: "here", description: dsc(
-                            "You are here. There is a [thing thing] here."
-                        ) },
-                        { type: "titles", pov: "you", topic: "thing", title: "Thing" },
-                        { type: "describes", pov: "you", topic: "thing", description: dsc(
-                            "The thing has a [feature feature] on it."
-                        ) },
-                        { type: "titles", pov: "you", topic: "feature", title: "Feature" },
-                        { type: "describes", pov: "you", topic: "feature", description: dsc(
-                            "The feature of the [thing thing] is nondescript."
-                        ) }
-                    ], function ( fact ) {
-                        return {
-                            startTime: 0,
-                            endTime: { type: "assumeAfter", time: 10, assumption: true },
-                            fact: fact
-                        };
-                    } ) } );
+                    emitFullPrivy();
+                } else if ( event.type === "act" ) {
+                    applyAction( event.actor, event.action );
+                    emitFullPrivy();
                 } else {
                     throw new Error();
                 }
@@ -336,7 +592,8 @@ window.onload = function () {
     initContriverTextClientWidget( {
         hereEl: document.getElementById( "here-pane" ),
         focusEl: document.getElementById( "focus-content" ),
-        focusTabsEl: document.getElementById( "focus-tabs" )
+        focusTabsEl: document.getElementById( "focus-tabs" ),
+        futureEl: document.getElementById( "future-pane" )
     }, server.you, server.here,
         serverEvents.listenable, clientEvents.emittable );
 };
