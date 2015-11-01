@@ -546,12 +546,16 @@ function sampleServer() {
         };
     }
     function getFullPrivy( actor ) {
-        var stateVisibilities = arrMap( [ initialWorldState ].concat( arrMap( worldUpdates, function ( update ) {
-            return update.newWorldState;
-        } ) ), function ( state ) {
+        var states = [ initialWorldState ].concat(
+            arrMap( worldUpdates, function ( update ) {
+                return update.newWorldState;
+            } ) );
+        var stateVisibilities = arrMap( states, function ( state ) {
             return getInstantaneousVisibility( state, actor );
         } );
-        var actionVisibilities = arrMap( worldUpdates, function ( update, i ) {
+        var actionVisibilities = arrMap( worldUpdates,
+            function ( update, i ) {
+            
             return getActionVisibility( actor,
                 update.actor, update.action,
                 stateVisibilities[ i ], stateVisibilities[ i + 1 ] );
