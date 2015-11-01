@@ -172,7 +172,7 @@ function dsc( var_args ) {
 // ===== ContriverText client ========================================
 
 function initContriverTextClientWidget(
-    elements, pov, here, serverListenable, clientEmittable ) {
+    elements, pov, serverListenable, clientEmittable ) {
     
     var loadedFirstPrivy = false;
     var privy = [];
@@ -192,7 +192,6 @@ function initContriverTextClientWidget(
     
     var currentFocus = "you";
     var currentFocusTabs = [];
-    var currentTime = 0;
     function createFocusLink( topic ) {
         var link = document.createElement( "a" );
         link.setAttribute( "href", "#" );
@@ -206,7 +205,7 @@ function initContriverTextClientWidget(
         while ( el.hasChildNodes() )
             el.removeChild( el.firstChild );
     }
-    function setContent( containerEl, content ) {
+    function setContentToDescription( containerEl, content ) {
         clearDom( containerEl );
         var innerContainerEl = document.createElement( "div" );
         arrEach( content, function ( para ) {
@@ -224,73 +223,158 @@ function initContriverTextClientWidget(
         } );
         containerEl.appendChild( innerContainerEl );
     }
+    function setContentToChronicles( containerEl, content ) {
+        clearDom( containerEl );
+        var innerContainerEl = document.createElement( "div" );
+        arrEach( content.chronicles, function ( tf ) {
+            var chronicleEl = document.createElement( "div" );
+            chronicleEl.className = "chronicle";
+            setContentToDescription(
+                chronicleEl, tf.fact.chronicle );
+            innerContainerEl.appendChild( chronicleEl );
+        } );
+        var descriptionEl = document.createElement( "div" );
+        descriptionEl.className = "description";
+        setContentToDescription( descriptionEl,
+            content.descriptions.length === 0 ?
+                dsc( "((No description at the moment...))" ) :
+                content.descriptions[
+                    content.descriptions.length - 1 ].fact.description
+            );
+        innerContainerEl.appendChild( descriptionEl );
+        containerEl.appendChild( innerContainerEl );
+    }
+    function getMostRecentTemporalFact(
+        stopEarlierThanTime, checkFact ) {
+        
+        var results = [];
+        var attemptedStopEarlierThanTime =
+            stopEarlierThanTime;
+        while ( true ) {
+            arrEach( privy, function ( tf ) {
+                if ( (results.length === 0
+                        || results[ 0 ].stopTime < tf.stopTime
+                        || (results[ 0 ].stopTime === tf.stopTime
+                            // If multiple facts conflict, the ones
+                            // that started the earliest take
+                            // precedence.
+                            && tf.startTime <=
+                                results[ 0 ].startTime))
+                    && tf.stopTime < attemptedStopEarlierThanTime
+                    && checkFact( tf.fact ) ) {
+                    
+                    if ( results.length === 0
+                        || (results[ 0 ].stopTime === tf.stopTime
+                            && tf.startTime ===
+                                results[ 0 ].startTime) )
+                        results.push( tf );
+                    else
+                        results = [ tf ];
+                }
+            } );
+            if ( results.length <= 1 )
+                break;
+            // If multiple facts conflict and they all start at the
+            // same time, then none of them take effect at all, and we
+            // try again with an earlier time.
+            attemptedStopEarlierThanTime = results[ 0 ].stopTime;
+        }
+        return results.length === 1 ? results[ 0 ] : null;
+    }
+    function getHistoryOfTemporalFacts( checkFact ) {
+        var results = [];
+        var stopEarlierThanTime = 1 / 0;
+        while ( true ) {
+            var tf = getMostRecentTemporalFact(
+                stopEarlierThanTime, checkFact );
+            if ( tf === null )
+                break;
+            results.unshift( tf );
+            stopEarlierThanTime = tf.stopTime;
+        }
+        return results;
+    }
+    function getCurrentTime() {
+        var currentTime = 0;
+        arrEach( privy, function ( tf ) {
+            currentTime = Math.max( currentTime, tf.stopTime );
+        } );
+        return currentTime;
+    }
     function getCurrentFacts() {
-        return arrMappend( privy, function ( temporalFact ) {
-            if ( currentTime < temporalFact.startTime )
-                return [];
-            
-            var end = temporalFact.endTime;
-            if ( end.type === "knownEndTime" ) {
-                if ( end.time <= currentTime )
-                    return [];
-            } else if ( end.type === "assumeAfter" ) {
-                if ( end.time <= currentTime && !end.assumption )
-                    return [];
-            } else {
-                throw new Error();
-            }
-            
-            return [ temporalFact.fact ];
+        var currentTime = getCurrentTime();
+        return arrMappend( privy, function ( tf ) {
+            return currentTime === tf.stopTime ? [ tf.fact ] : [];
         } );
     }
-    function getTitle( topic ) {
-        var descriptions = arrMappend( getCurrentFacts(),
-            function ( fact ) {
-            
-            if ( fact.type === "titles"
-                && fact.pov === pov
-                && fact.topic === topic )
-                return [ fact.title ];
-            else
-                return [];
+    function forceMostRecentTitle( topic ) {
+        var tf = getMostRecentTemporalFact( 1 / 0, function ( fact ) {
+            return fact.type === "titles" &&
+                fact.pov === pov &&
+                fact.topic === topic;
         } );
-        if ( descriptions.length !== 1 )
-            return null;
-        return descriptions[ 0 ];
+        return tf === null ? "((Unknown))" : tf.fact.title;
     }
-    function forceTitle( topic ) {
-        var title = getTitle( topic );
-        return title !== null ? title : "((Unknown))";
+    function getChronicles( topic ) {
+        return {
+            chronicles: getHistoryOfTemporalFacts( function ( fact ) {
+                return fact.type === "chronicles" &&
+                    fact.pov === pov &&
+                    fact.topic === topic;
+            } ),
+            descriptions: getHistoryOfTemporalFacts(
+                function ( fact ) {
+                
+                return fact.type === "describes" &&
+                    fact.pov === pov &&
+                    fact.topic === topic;
+            } )
+        };
     }
-    function getDescription( topic ) {
-        var descriptions = arrMappend( getCurrentFacts(),
-            function ( fact ) {
-            
-            if ( fact.type === "describes"
-                && fact.pov === pov
-                && fact.topic === topic )
-                return [ fact.description ];
-            else
-                return [];
-        } );
-        if ( descriptions.length !== 1 )
-            return null;
-        return descriptions[ 0 ];
-    }
-    function forceDescription( topic ) {
-        var desc = getDescription( topic );
-        return desc !== null ? desc :
-            dsc( "((No description at the moment...))" );
+    function getChroniclesHere() {
+        return {
+            chronicles: getHistoryOfTemporalFacts( function ( fact ) {
+                return fact.type === "chroniclesHere" &&
+                    fact.pov === pov;
+            } ),
+            descriptions: getHistoryOfTemporalFacts(
+                function ( fact ) {
+                
+                return fact.type === "describesHere" &&
+                    fact.pov === pov;
+            } )
+        };
     }
     function setFocus( topic ) {
         currentFocus = topic;
         updateUi();
     }
+    function isScrolledToBottom( el ) {
+        var forgivenessPx = 10;
+        return el.scrollHeight - el.clientHeight - el.scrollTop <=
+            forgivenessPx;
+    }
+    function scrollToBottom( el ) {
+        el.scrollTop = el.scrollHeight;
+    }
     function updateUi() {
-        
-        setContent( elements.hereEl,
-            loadedFirstPrivy ? forceDescription( here ) : dsc() );
-//            dsc( "((Loading...))" ) );
+        var hereWasScrolledToBottom =
+            isScrolledToBottom( elements.hereEl );
+        var focusWasScrolledToBottom =
+            isScrolledToBottom( elements.focusEl );
+        setContentToChronicles( elements.hereEl,
+            loadedFirstPrivy ?
+                getChroniclesHere() :
+                {
+                    chronicles: [],
+                    descriptions: [ {
+                        startTime: 0,
+                        stopTime: 1,
+                        fact: { type: "describesHere", pov: pov,
+                            description: dsc() }
+//                            description: dsc( "((Loading...))" ) }
+                    } ]
+                } );
         
         function addTab( topic ) {
             var tabEl = document.createElement( "li" );
@@ -298,7 +382,8 @@ function initContriverTextClientWidget(
                 tabEl.className = "active";
             var tabLinkEl = createFocusLink( topic );
             tabLinkEl.appendChild(
-                document.createTextNode( forceTitle( topic ) ) );
+                document.createTextNode(
+                    forceMostRecentTitle( topic ) ) );
             tabEl.appendChild( tabLinkEl );
             elements.focusTabsEl.appendChild( tabEl );
         }
@@ -322,8 +407,8 @@ function initContriverTextClientWidget(
             addTab( currentFocus );
         }
         removeTabOverflow();
-        setContent( elements.focusEl,
-            forceDescription( currentFocus ) );
+        setContentToChronicles( elements.focusEl,
+            getChronicles( currentFocus ) );
         
         clearDom( elements.futureEl );
         if ( loadedFirstPrivy )
@@ -339,6 +424,10 @@ function initContriverTextClientWidget(
                 };
                 elements.futureEl.appendChild( button );
             } );
+        if ( hereWasScrolledToBottom )
+            scrollToBottom( elements.hereEl );
+        if ( focusWasScrolledToBottom )
+            scrollToBottom( elements.focusEl );
     }
     updateUi();
 }
@@ -415,19 +504,19 @@ function sampleServer() {
         worldUpdates.push(
             actionToUpdate( worldState, actor, action ) );
     }
-    function getVisibility( worldState, actor ) {
+    function getInstantaneousVisibility( worldState, pov ) {
         var rels = [];
         var containers = [];
         arrEach( worldState, function ( rel ) {
-            if ( rel.type === "in-room" && rel.element === actor ) {
+            if ( rel.type === "in-room" && rel.element === pov ) {
                 containers.push( rel.container );
                 rels.push( rel );
             }
         } );
-        var topics = [ "here", actor ].concat( containers );
+        var topics = [ pov ].concat( containers );
         arrEach( worldState, function ( rel ) {
             if ( rel.type === "in-room"
-                && rel.element !== actor
+                && rel.element !== pov
                 && arrHasJson( containers, rel.container ) ) {
                 
                 topics.push( rel.element );
@@ -439,10 +528,65 @@ function sampleServer() {
             worldState: rels,
             actions: arrMappend( getActionsPermitted( worldState ),
                 function ( actionPermitted ) {
-                    return actionPermitted.actor === actor ?
+                    return actionPermitted.actor === pov ?
                         [ actionPermitted.action ] : [];
                 } )
         };
+    }
+    function getActionVisibility(
+        pov, actor, action, before, after ) {
+        
+        return {
+            actor: actor,
+            action:
+                (arrHasJson( before.topics, actor )
+                    || arrHasJson( after.topics, actor )) ?
+                    action :
+                    { type: "nothing" }
+        };
+    }
+    function getFullPrivy( actor ) {
+        var stateVisibilities = arrMap( [ initialWorldState ].concat( arrMap( worldUpdates, function ( update ) {
+            return update.newWorldState;
+        } ) ), function ( state ) {
+            return getInstantaneousVisibility( state, actor );
+        } );
+        var actionVisibilities = arrMap( worldUpdates, function ( update, i ) {
+            return getActionVisibility( actor,
+                update.actor, update.action,
+                stateVisibilities[ i ], stateVisibilities[ i + 1 ] );
+        } );
+        var n = actionVisibilities.length;
+        var privy = [];
+        var time = 0;
+        function addFactsAsTimeStep( facts ) {
+            privy = privy.concat( arrMap( facts, function ( fact ) {
+                return {
+                    startTime: time,
+                    stopTime: time + 1,
+                    fact: fact
+                };
+            } ) );
+            time++;
+        }
+        var prevSv = null;
+        for ( var i = 0; ; i++ ) {
+            var sv = stateVisibilities[ i ];
+            if ( prevSv === null || !jsonIso( prevSv, sv ) )
+                addFactsAsTimeStep(
+                    stateVisibilityToPrivyFacts( actor, sv ) );
+            if ( n <= i )
+                break;
+            var av = actionVisibilities[ i ];
+            if ( av.action.type === "nothing" ) {
+                prevSv = sv;
+            } else {
+                prevSv = null;
+                addFactsAsTimeStep(
+                    actionVisibilityToPrivyFacts( actor, av ) );
+            }
+        }
+        return privy;
     }
     var describers = {};
     function defDescribe( room, describer ) {
@@ -457,22 +601,19 @@ function sampleServer() {
             description:
                 dsc.apply( null, [].slice.call( arguments, 1 ) ) };
     }
-    defDescribe( "here", function ( actor, visibility ) {
+    function describeHere( actor, visibility ) {
         var firstRoom = arrAny( visibility.worldState,
             function ( rel ) {
             
             return rel.type === "in-room" && rel.element === actor ?
                 { val: rel.container } : false;
         } );
-        return { title: "Your surroundings",
-            description: firstRoom ?
-                describe( actor, visibility, firstRoom.val
-                    ).description :
-                dsc(
-                    "((You don't seem to be located anywhere right " +
-                    "now.))"
-                ) };
-    } );
+        return firstRoom ?
+            describe( actor, visibility, firstRoom.val ).description :
+            dsc(
+                "((You don't seem to be located anywhere right now.))"
+            );
+    }
     defDescribe( "you", function ( actor, visibility ) {
         return titleDsc( "You",
             "You're wearing your adventuring clothes today." );
@@ -503,8 +644,11 @@ function sampleServer() {
             "You're in [southeast-room the southeast room]." );
     } );
     
-    function visibilityToPrivy( actor, visibility ) {
-        var facts = arrMappend( visibility.topics,
+    function stateVisibilityToPrivyFacts( actor, visibility ) {
+        return [
+            { type: "describesHere", pov: actor,
+                description: describeHere( actor, visibility ) }
+        ].concat( arrMappend( visibility.topics,
             function ( topic ) {
             
             var details = describe( actor, visibility, topic );
@@ -514,7 +658,7 @@ function sampleServer() {
                 { type: "describes", pov: actor, topic: topic,
                     description: details.description }
             ];
-        } ).concat( arrMap( visibility.actions, function ( action ) {
+        } ), arrMap( visibility.actions, function ( action ) {
             // TODO: The "can" type carries more information than the
             // client strictly needs, and yet it doesn't necessarily
             // contain a good source of information from which to
@@ -539,20 +683,58 @@ function sampleServer() {
             return { type: "can",
                 pov: actor, label: label, action: action };
         } ) );
-        return arrMap( facts, function ( fact ) {
-            return {
-                startTime: 0,
-                endTime: { type: "assumeAfter",
-                    time: 10, assumption: true },
-                fact: fact
-            };
-        } );
+    }
+    function actionVisibilityToPrivyFacts( actor, visibility ) {
+        var action = visibility.action;
+        if ( action.type === "exit" ) {
+            if ( action.direction === "n" ) {
+                var directionText = "north";
+                var directionOppositeText = "south";
+            } else if ( action.direction === "s" ) {
+                var directionText = "south";
+                var directionOppositeText = "north";
+            } else if ( action.direction === "e" ) {
+                var directionText = "east";
+                var directionOppositeText = "west";
+            } else if ( action.direction === "w" ) {
+                var directionText = "west";
+                var directionOppositeText = "east";
+            } else {
+                throw new Error();
+            }
+            var isMe = actor === visibility.actor;
+            var result = [
+                { type: "chronicles", pov: actor, topic: action.from,
+                    chronicle: dsc(
+                        (isMe ? "You leave " : "Someone leaves ") +
+                        "to the " + directionText + "."
+                    ) },
+                { type: "chronicles", pov: actor, topic: action.to,
+                    chronicle: dsc(
+                        (isMe ? "You arrive " : "Someone arrives ") +
+                        "from the " + directionOppositeText + "."
+                    ) },
+                { type: "chronicles", pov: actor,
+                    topic: visibility.actor,
+                    chronicle: dsc(
+                        (isMe ? "You go" : "Someone goes") + " " +
+                        directionText + "."
+                    ) },
+            ];
+            if ( isMe )
+                result.push( { type: "chroniclesHere", pov: actor,
+                    chronicle: dsc(
+                        "You go " + directionText + "."
+                    ) } );
+            return result;
+        } else {
+            throw new Error();
+        }
     }
     
     
     var result = {};
     result.you = "you";
-    result.here = "here";
     result.addClient = function (
         you, clientListenable, serverEmittable ) {
         
@@ -560,9 +742,7 @@ function sampleServer() {
             clientListenable.on( function ( event ) {
                 function emitFullPrivy() {
                     serverEmittable.emit( { type: "fullPrivy",
-                        privy: visibilityToPrivy( "you",
-                            getVisibility( getCurrentWorldState(),
-                                "you" ) ) } );
+                        privy: getFullPrivy( "you" ) } );
                 }
                 
                 if ( event.type === "needsFullPrivy" ) {
@@ -594,8 +774,7 @@ window.onload = function () {
         focusEl: document.getElementById( "focus-content" ),
         focusTabsEl: document.getElementById( "focus-tabs" ),
         futureEl: document.getElementById( "future-pane" )
-    }, server.you, server.here,
-        serverEvents.listenable, clientEvents.emittable );
+    }, server.you, serverEvents.listenable, clientEvents.emittable );
 };
 
 

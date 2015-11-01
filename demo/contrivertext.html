@@ -26,8 +26,9 @@
     left: 0;
     right: 50%;
     bottom: 0;
-    padding: 10px;
     border: 1px solid #bcae66;
+    padding: 10px;
+    overflow-y: scroll;
     background: #f0eacd;
 }
 .contrivertext-book > .focus-pane {
@@ -50,27 +51,27 @@
 .contrivertext-book > .focus-pane > ul.focus-tabs > li {
     display: inline-block;
     height: 24px;
-    list-style: none;
-    background: #e0d8b4;
     border: 1px solid #bcae66;
-    margin: 1px 0 -1px -4px;
     border-radius: 10px 10px 0 0;
     border-radius: 10px 10px 0 0 / 20px 20px 0 0;
+    margin: 1px 0 -1px -4px;
+    list-style: none;
+    background: #e0d8b4;
 }
 .contrivertext-book > .focus-pane > ul.focus-tabs > li.active {
     display: inline-block;
-    height: 25px;
     position: relative;
     z-index: 1;
+    height: 25px;
+    border-bottom: 0;
     list-style: none;
     background: #f0eacd;
-    border-bottom: 0;
 }
 .contrivertext-book > .focus-pane > ul.focus-tabs > li > a {
     padding: 10px;
-    color: #000000;
-    font-weight: normal;
     line-height: 27px;
+    font-weight: normal;
+    color: #000000;
 }
 .contrivertext-book > .focus-pane > .focus-content {
     position: absolute;
@@ -80,6 +81,7 @@
     bottom: 0;
     border: 1px solid #bcae66;
     padding: 10px;
+    overflow-y: scroll;
     background: #f0eacd;
 }
 </style>
