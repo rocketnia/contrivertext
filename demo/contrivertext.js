@@ -226,22 +226,47 @@ function initContriverTextClientWidget(
     function setContentToChronicles( containerEl, content ) {
         clearDom( containerEl );
         var innerContainerEl = document.createElement( "div" );
-        arrEach( content.chronicles, function ( tf ) {
-            var chronicleEl = document.createElement( "div" );
-            chronicleEl.className = "chronicle";
-            setContentToDescription(
-                chronicleEl, tf.fact.chronicle );
-            innerContainerEl.appendChild( chronicleEl );
+        
+        var lastDescriptionEl = null;
+        arrEach( content, function ( visit ) {
+            var visitEl = document.createElement( "div" );
+            visitEl.className = "visit";
+            arrEach( visit, function ( visitEntry ) {
+                if ( visitEntry.role === "chronicle" ) {
+                    var chronicleEl = document.createElement( "div" );
+                    chronicleEl.className = "chronicle";
+                    setContentToDescription( chronicleEl,
+                        visitEntry.temporalFact.fact.chronicle );
+                    visitEl.appendChild( chronicleEl );
+                } else if ( visitEntry.role === "description" ) {
+                    var descriptionEl =
+                        document.createElement( "div" );
+                    descriptionEl.className = "description";
+                    setContentToDescription( descriptionEl,
+                        visitEntry.temporalFact.fact.description );
+                    visitEl.appendChild( descriptionEl );
+                    lastDescriptionEl = descriptionEl;
+                } else {
+                    throw new Error();
+                }
+            } );
+            innerContainerEl.appendChild( visitEl );
         } );
-        var descriptionEl = document.createElement( "div" );
-        descriptionEl.className = "description";
-        setContentToDescription( descriptionEl,
-            content.descriptions.length === 0 ?
-                dsc( "((No description at the moment...))" ) :
-                content.descriptions[
-                    content.descriptions.length - 1 ].fact.description
-            );
-        innerContainerEl.appendChild( descriptionEl );
+        
+        if ( lastDescriptionEl === null ) {
+            var visitEl = document.createElement( "div" );
+            visitEl.className = "visit";
+            var descriptionEl = document.createElement( "div" );
+            descriptionEl.className = "description";
+            setContentToDescription( descriptionEl,
+                dsc( "((No description at the moment...))" ) );
+            visitEl.appendChild( descriptionEl );
+            lastDescriptionEl = descriptionEl;
+            innerContainerEl.appendChild( visitEl );
+        }
+        
+        lastDescriptionEl.className = "description last-description";
+        
         containerEl.appendChild( innerContainerEl );
     }
     function getMostRecentTemporalFact(
@@ -315,35 +340,80 @@ function initContriverTextClientWidget(
         } );
         return tf === null ? "((Unknown))" : tf.fact.title;
     }
+    function mergeChronicles( chronicles, descriptions ) {
+        var result = [];
+        var resultSegment = [];
+        var cn = chronicles.length;
+        var dn = descriptions.length;
+        var ci = 0;
+        var di = 0;
+        function process( resultEntry ) {
+            var n = resultSegment.length;
+            if ( !(n === 0
+                || resultEntry.temporalFact.startTime <=
+                    resultSegment[ n - 1 ].temporalFact.stopTime) ) {
+                result.push( resultSegment );
+                resultSegment = [];
+            }
+            resultSegment.push( resultEntry );
+        }
+        function processChronicle() {
+            process( { role: "chronicle",
+                temporalFact: chronicles[ ci ] } );
+            ci++;
+        }
+        function processDescription() {
+            process( { role: "description",
+                temporalFact: descriptions[ di ] } );
+            di++;
+        }
+        while ( true ) {
+            if ( ci < cn ) {
+                if ( di < dn ) {
+                    var c = chronicles[ ci ];
+                    var d = descriptions[ di ];
+                    if ( c.startTime <= d.startTime )
+                        processChronicle();
+                    else
+                        processDescription();
+                } else {
+                    processChronicle();
+                }
+            } else {
+                if ( di < dn ) {
+                    processDescription();
+                } else {
+                    break;
+                }
+            }
+        }
+        if ( resultSegment.length !== 0 )
+            result.push( resultSegment );
+        return result;
+    }
     function getChronicles( topic ) {
-        return {
-            chronicles: getHistoryOfTemporalFacts( function ( fact ) {
+        return mergeChronicles(
+            getHistoryOfTemporalFacts( function ( fact ) {
                 return fact.type === "chronicles" &&
                     fact.pov === pov &&
                     fact.topic === topic;
             } ),
-            descriptions: getHistoryOfTemporalFacts(
-                function ( fact ) {
-                
+            getHistoryOfTemporalFacts( function ( fact ) {
                 return fact.type === "describes" &&
                     fact.pov === pov &&
                     fact.topic === topic;
-            } )
-        };
+            } ) );
     }
     function getChroniclesHere() {
-        return {
-            chronicles: getHistoryOfTemporalFacts( function ( fact ) {
+        return mergeChronicles(
+            getHistoryOfTemporalFacts( function ( fact ) {
                 return fact.type === "chroniclesHere" &&
                     fact.pov === pov;
             } ),
-            descriptions: getHistoryOfTemporalFacts(
-                function ( fact ) {
-                
+            getHistoryOfTemporalFacts( function ( fact ) {
                 return fact.type === "describesHere" &&
                     fact.pov === pov;
-            } )
-        };
+            } ) );
     }
     function setFocus( topic ) {
         currentFocus = topic;
@@ -365,16 +435,13 @@ function initContriverTextClientWidget(
         setContentToChronicles( elements.hereEl,
             loadedFirstPrivy ?
                 getChroniclesHere() :
-                {
-                    chronicles: [],
-                    descriptions: [ {
-                        startTime: 0,
-                        stopTime: 1,
-                        fact: { type: "describesHere", pov: pov,
-                            description: dsc() }
-//                            description: dsc( "((Loading...))" ) }
-                    } ]
-                } );
+                [ { role: "description", temporalFact: {
+                    startTime: 0,
+                    stopTime: 1,
+                    fact: { type: "describesHere", pov: pov,
+                        description: dsc() }
+//                        description: dsc( "((Loading...))" ) }
+                } } ] );
         
         function addTab( topic ) {
             var tabEl = document.createElement( "li" );
@@ -587,7 +654,8 @@ function sampleServer() {
             } else {
                 prevSv = null;
                 addFactsAsTimeStep(
-                    actionVisibilityToPrivyFacts( actor, av ) );
+                    actionVisibilityToPrivyFacts(
+                        actor, av, sv, stateVisibilities[ i + 1 ] ) );
             }
         }
         return privy;
@@ -688,7 +756,9 @@ function sampleServer() {
                 pov: actor, label: label, action: action };
         } ) );
     }
-    function actionVisibilityToPrivyFacts( actor, visibility ) {
+    function actionVisibilityToPrivyFacts(
+        actor, visibility, before, after ) {
+        
         var action = visibility.action;
         if ( action.type === "exit" ) {
             if ( action.direction === "n" ) {
@@ -708,23 +778,46 @@ function sampleServer() {
             }
             var isMe = actor === visibility.actor;
             var result = [
-                { type: "chronicles", pov: actor, topic: action.from,
-                    chronicle: dsc(
-                        (isMe ? "You leave " : "Someone leaves ") +
-                        "to the " + directionText + "."
-                    ) },
-                { type: "chronicles", pov: actor, topic: action.to,
-                    chronicle: dsc(
-                        (isMe ? "You arrive " : "Someone arrives ") +
-                        "from the " + directionOppositeText + "."
-                    ) },
                 { type: "chronicles", pov: actor,
                     topic: visibility.actor,
                     chronicle: dsc(
                         (isMe ? "You go" : "Someone goes") + " " +
                         directionText + "."
-                    ) },
+                    ) }
             ];
+            if ( isMe ) {
+                arrEach( before.topics, function ( topic ) {
+                    if ( arrHasJson( after.topics, topic ) )
+                        return;
+                    result.push( { type: "chronicles", pov: actor,
+                        topic: topic,
+                        chronicle: dsc(
+                            "You leave to the " + directionText + "."
+                        ) } );
+                } );
+                arrEach( after.topics, function ( topic ) {
+                    if ( arrHasJson( before.topics, topic ) )
+                        return;
+                    result.push( { type: "chronicles", pov: actor,
+                        topic: topic,
+                        chronicle: dsc(
+                            "You arrive from the " +
+                            directionOppositeText + "."
+                        ) } );
+                } );
+            } else {
+                result.push( { type: "chronicles", pov: actor,
+                    topic: action.from,
+                    chronicle: dsc(
+                        "Someone leaves to the " + directionText + "."
+                    ) } );
+                result.push( { type: "chronicles", pov: actor,
+                    topic: action.to,
+                    chronicle: dsc(
+                        "Someone arrives from the " +
+                        directionOppositeText + "."
+                    ) } );
+            }
             if ( isMe )
                 result.push( { type: "chroniclesHere", pov: actor,
                     chronicle: dsc(
