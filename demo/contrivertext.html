@@ -52,6 +52,9 @@
 .contrivertext-book > .here-pane .visit > .description {
     margin-top: 14px;
 }
+.contrivertext-book > .here-pane .visit > .description.redundant {
+    display: none;
+}
 .contrivertext-book > .here-pane .visit > .description:first-child {
     margin-top: 0;
 }
@@ -115,11 +118,17 @@
     margin-bottom: 5px;
 }
 .contrivertext-book > .focus-pane > .focus-content
+    .visit > .description.redundant {
+    
+    display: none;
+}
+.contrivertext-book > .focus-pane > .focus-content
     .visit > .chronicle,
 .contrivertext-book > .focus-pane > .focus-content
     .visit > .description
 {
-    border: 1px solid #bcae66;
+    border-left: 1px solid #bcae66;
+    border-right: 1px solid #bcae66;
     padding: 10px;
 }
 .contrivertext-book > .focus-pane > .focus-content
@@ -138,6 +147,7 @@ those instead.
 .contrivertext-book > .focus-pane > .focus-content
     .visit > .description:first-child
 {
+    border-top: 1px solid #bcae66;
     border-radius: 8.5px 8.5px 0 0;
 }
 .contrivertext-book > .focus-pane > .focus-content
@@ -145,6 +155,7 @@ those instead.
 .contrivertext-book > .focus-pane > .focus-content
     .visit > .description:last-child
 {
+    border-bottom: 1px solid #bcae66;
     border-radius: 0 0 8.5px 8.5px;
 }
 .contrivertext-book > .focus-pane > .focus-content
@@ -152,6 +163,8 @@ those instead.
 .contrivertext-book > .focus-pane > .focus-content
     .visit > .description:first-child:last-child
 {
+    border-top: 1px solid #bcae66;
+    border-bottom: 1px solid #bcae66;
     border-radius: 8.5px;
 }
 

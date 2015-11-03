@@ -224,16 +224,43 @@ function initContriverTextClientWidget(
         containerEl.appendChild( innerContainerEl );
     }
     function setContentToChronicles( containerEl, content ) {
+        
+        var annotatedDescriptionBefore = null;
+        var annotatedContent = arrMap( content, function ( visit ) {
+            return arrMap( visit, function ( visitEntry ) {
+                var annotatedVisitEntry = {
+                    sameAsBefore: false,
+                    sameAsAfter: false,
+                    visitEntry: visitEntry
+                };
+                if ( visitEntry.role === "description" ) {
+                    if ( annotatedDescriptionBefore !== null
+                        && jsonIso(
+                            annotatedDescriptionBefore.visitEntry.
+                                temporalFact.fact.description,
+                            visitEntry.temporalFact.fact.description )
+                    ) {
+                        annotatedDescriptionBefore.sameAsAfter = true;
+                        annotatedVisitEntry.sameAsBefore = true;
+                    }
+                    annotatedDescriptionBefore = annotatedVisitEntry;
+                }
+                return annotatedVisitEntry;
+            } );
+        } );
+        
+        
         clearDom( containerEl );
         var innerContainerEl = document.createElement( "div" );
         
         var lastDescriptionEl = null;
-        arrEach( content, function ( visit ) {
+        arrEach( annotatedContent, function ( visit ) {
             var visitEl = document.createElement( "div" );
             visitEl.className = "visit";
             var isFirstVisitEntry = true;
             var lastVisitEntryEl = null;
-            arrEach( visit, function ( visitEntry ) {
+            arrEach( visit, function ( annotatedVisitEntry ) {
+                var visitEntry = annotatedVisitEntry.visitEntry;
                 if ( visitEntry.role === "chronicle" ) {
                     var chronicleEl = document.createElement( "div" );
                     chronicleEl.className = "chronicle" +
@@ -249,6 +276,9 @@ function initContriverTextClientWidget(
                     descriptionEl.className = "description" +
                         (isFirstVisitEntry ?
                             " first-visit-entry" : "");
+                    if ( annotatedVisitEntry.sameAsBefore
+                        && annotatedVisitEntry.sameAsAfter )
+                        descriptionEl.className += " redundant";
                     setContentToDescription( descriptionEl,
                         visitEntry.temporalFact.fact.description );
                     visitEl.appendChild( descriptionEl );
