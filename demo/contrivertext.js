@@ -231,25 +231,36 @@ function initContriverTextClientWidget(
         arrEach( content, function ( visit ) {
             var visitEl = document.createElement( "div" );
             visitEl.className = "visit";
+            var isFirstVisitEntry = true;
+            var lastVisitEntryEl = null;
             arrEach( visit, function ( visitEntry ) {
                 if ( visitEntry.role === "chronicle" ) {
                     var chronicleEl = document.createElement( "div" );
-                    chronicleEl.className = "chronicle";
+                    chronicleEl.className = "chronicle" +
+                        (isFirstVisitEntry ?
+                            " first-visit-entry" : "");
                     setContentToDescription( chronicleEl,
                         visitEntry.temporalFact.fact.chronicle );
                     visitEl.appendChild( chronicleEl );
+                    lastVisitEntryEl = chronicleEl;
                 } else if ( visitEntry.role === "description" ) {
                     var descriptionEl =
                         document.createElement( "div" );
-                    descriptionEl.className = "description";
+                    descriptionEl.className = "description" +
+                        (isFirstVisitEntry ?
+                            " first-visit-entry" : "");
                     setContentToDescription( descriptionEl,
                         visitEntry.temporalFact.fact.description );
                     visitEl.appendChild( descriptionEl );
                     lastDescriptionEl = descriptionEl;
+                    lastVisitEntryEl = descriptionEl;
                 } else {
                     throw new Error();
                 }
+                isFirstVisitEntry = false;
             } );
+            if ( lastVisitEntryEl !== null )
+                lastVisitEntryEl.className += " last-visit-entry";
             innerContainerEl.appendChild( visitEl );
         } );
         
@@ -257,7 +268,8 @@ function initContriverTextClientWidget(
             var visitEl = document.createElement( "div" );
             visitEl.className = "visit";
             var descriptionEl = document.createElement( "div" );
-            descriptionEl.className = "description";
+            descriptionEl.className =
+                "description first-visit-entry last-visit-entry";
             setContentToDescription( descriptionEl,
                 dsc( "((No description at the moment...))" ) );
             visitEl.appendChild( descriptionEl );
@@ -265,7 +277,7 @@ function initContriverTextClientWidget(
             innerContainerEl.appendChild( visitEl );
         }
         
-        lastDescriptionEl.className = "description last-description";
+        lastDescriptionEl.className += " last-description";
         
         containerEl.appendChild( innerContainerEl );
     }
