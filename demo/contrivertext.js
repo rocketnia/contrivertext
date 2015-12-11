@@ -38,6 +38,12 @@ function arrMap( arr, func ) {
         return [ func( item, i ) ];
     } );
 }
+function numMap( n, body ) {
+    var result = [];
+    for ( var i = 0; i < n; i++ )
+        result.push( body( i ) );
+    return result;
+}
 function arrKeep( arr, check ) {
     return arrMappend( arr, function ( item, i ) {
         return check( item, i ) ? [ item ] : [];
@@ -246,9 +252,9 @@ function initContriverTextClientWidget(
     var currentFocusTabs = [];
     function createFocusLink( topic, var_args ) {
         var rest = [].slice.call( arguments, 1 );
-        return appendDom( "a", { href: "#", click: function () {
+        return appendDom( "a", { href: "#", click: function ( e ) {
+            e.preventDefault();
             setFocus( topic );
-            return false;
         } }, rest );
     }
     function makeContentFromDescription( content ) {
@@ -260,16 +266,27 @@ function initContriverTextClientWidget(
             } ) );
         } ) );
     }
-    function makeContentFromChronicles( content ) {
-        
+    function annotateChronicles( chronicles ) {
+        var annotatedLastDescriptionEntry = null;
         var annotatedDescriptionBefore = null;
-        var annotatedContent = arrMap( content, function ( visit ) {
-            return arrMap( visit, function ( visitEntry ) {
+        var annotatedChronicles = arrMap( chronicles,
+            function ( visit ) {
+            
+            var isFirstVisitEntry = true;
+            var annotatedLastVisitEntry = null;
+            var annotatedVisit = arrMap( visit,
+                function ( visitEntry ) {
+                
                 var annotatedVisitEntry = {
                     sameAsBefore: false,
                     sameAsAfter: false,
+                    isFirstVisitEntry: isFirstVisitEntry,
+                    isLastVisitEntry: false,
+                    isLastDescription: false,
                     visitEntry: visitEntry
                 };
+                isFirstVisitEntry = false;
+                annotatedLastVisitEntry = annotatedVisitEntry;
                 if ( visitEntry.role === "description" ) {
                     if ( annotatedDescriptionBefore !== null
                         && jsonIso(
@@ -281,72 +298,212 @@ function initContriverTextClientWidget(
                         annotatedVisitEntry.sameAsBefore = true;
                     }
                     annotatedDescriptionBefore = annotatedVisitEntry;
+                    annotatedLastDescriptionEntry =
+                        annotatedVisitEntry;
                 }
                 return annotatedVisitEntry;
             } );
+            if ( annotatedLastVisitEntry !== null )
+                annotatedLastVisitEntry.isLastVisitEntry = true;
+            return annotatedVisit;
         } );
+        if ( annotatedLastDescriptionEntry === null ) {
+            annotatedLastDescriptionEntry = {
+                sameAsBefore: false,
+                sameAsAfter: false,
+                isFirstVisitEntry: true,
+                isLastVisitEntry: true,
+                isLastDescription: true,
+                visitEntry: { role: "noDescription" }
+            };
+            annotatedChronicles.push(
+                [ annotatedLastDescriptionEntry ] );
+        }
+        annotatedLastDescriptionEntry.isLastDescription = true;
+        return annotatedChronicles;
+    }
+    function makeClassesFromAnnotatedVisitEntry(
+        annotatedVisitEntry ) {
         
+        var visitEntry = annotatedVisitEntry.visitEntry;
         
-        var lastDescriptionEl = null;
-        var containerEl = appendDom( "div", {
-        }, arrMap( annotatedContent, function ( visit ) {
-            var isFirstVisitEntry = true;
-            var lastVisitEntryEl = null;
-            var visitEl = appendDom( "div", {
-                class: "visit"
-            }, arrMap( visit, function ( annotatedVisitEntry ) {
-                var visitEntry = annotatedVisitEntry.visitEntry;
-                if ( visitEntry.role === "chronicle" ) {
-                    var chronicleEl = appendDom( "div", {
-                        class: "chronicle" +
-                            (isFirstVisitEntry ?
-                                " first-visit-entry" : "")
-                    }, makeContentFromDescription(
-                        visitEntry.temporalFact.fact.chronicle
-                    ) );
-                    lastVisitEntryEl = chronicleEl;
-                    isFirstVisitEntry = false;
-                    return chronicleEl;
-                } else if ( visitEntry.role === "description" ) {
-                    var descriptionEl = appendDom( "div", {
-                        class: "description" +
-                            (isFirstVisitEntry ?
-                                " first-visit-entry" : "") +
-                            (annotatedVisitEntry.sameAsBefore
-                                && annotatedVisitEntry.sameAsAfter ?
-                                " redundant" : "")
-                    }, makeContentFromDescription(
-                        visitEntry.temporalFact.fact.description
-                    ) );
-                    lastDescriptionEl = descriptionEl;
-                    lastVisitEntryEl = descriptionEl;
-                    isFirstVisitEntry = false;
-                    return descriptionEl;
-                } else {
-                    throw new Error();
-                }
-            } ) );
-            if ( lastVisitEntryEl !== null )
-                lastVisitEntryEl.className += " last-visit-entry";
-            return visitEl;
-        } ) );
+        var result = "" +
+            (annotatedVisitEntry.sameAsBefore
+                && annotatedVisitEntry.sameAsAfter ?
+                " redundant" : "") +
+            (annotatedVisitEntry.isFirstVisitEntry ?
+                " first-visit-entry" : "") +
+            (annotatedVisitEntry.isLastVisitEntry ?
+                " last-visit-entry" : "") +
+            (annotatedVisitEntry.isLastDescription ?
+                " last-description" : "");
         
-        if ( lastDescriptionEl === null ) {
-            var descriptionEl = appendDom( "div", {
-                class:
-                    "description first-visit-entry last-visit-entry"
-            }, makeContentFromDescription(
-                dsc( "((No description at the moment...))" )
-            ) );
-            lastDescriptionEl = descriptionEl;
-            appendDom( containerEl,
-                appendDom( "div", { class: "visit" },
-                    descriptionEl ) );
+        if ( visitEntry.role === "chronicle" ) {
+            result += " chronicle";
+        } else if ( visitEntry.role === "description" ) {
+            result += " description";
+        } else if ( visitEntry.role === "noDescription" ) {
+            result += " description";
+        } else {
+            throw new Error();
         }
         
-        lastDescriptionEl.className += " last-description";
+        return result;
+    }
+    function makeContentFromAnnotatedVisitEntry(
+        annotatedVisitEntry ) {
         
-        return containerEl;
+        var visitEntry = annotatedVisitEntry.visitEntry;
+        
+        if ( visitEntry.role === "chronicle" ) {
+            var description = visitEntry.temporalFact.fact.chronicle;
+        } else if ( visitEntry.role === "description" ) {
+            var description =
+                visitEntry.temporalFact.fact.description;
+        } else if ( visitEntry.role === "noDescription" ) {
+            var description =
+                dsc( "((No description at the moment...))" );
+        } else {
+            throw new Error();
+        }
+        
+        return appendDom( "div", {
+            class: "visit-entry" +
+                makeClassesFromAnnotatedVisitEntry(
+                    annotatedVisitEntry )
+        }, makeContentFromDescription( description ) );
+    }
+    function makeContentFromChronicles( chronicles ) {
+        return appendDom( "div", {
+        }, arrMap( annotateChronicles( chronicles ),
+            function ( visit ) {
+            
+            return appendDom( "div", {
+                class: "visit"
+            }, arrMap( visit, function ( annotatedVisitEntry ) {
+                return makeContentFromAnnotatedVisitEntry(
+                    annotatedVisitEntry );
+            } ) );
+        } ) );
+    }
+    function makeContentFromHereAndFocusChronicles(
+        hereChronicles, focusChronicles ) {
+        
+        function flatAnnotateChronicles( chronicles ) {
+            return arrMappend( annotateChronicles( chronicles ),
+                function ( visit ) {
+                    return visit;
+                } );
+        }
+        var hereAnn = flatAnnotateChronicles( hereChronicles );
+        var focusAnn = flatAnnotateChronicles( focusChronicles );
+        
+        var allTimestampsPresenceObj = {};
+        var allTimestamps = [];
+        function addTimestamp( ts ) {
+            if ( objHas( allTimestampsPresenceObj, ts ) )
+                return;
+            allTimestampsPresenceObj[ ts ] = true;
+            allTimestamps.push( ts );
+        }
+        arrEach( [ hereAnn, focusAnn ], function ( ann ) {
+            arrEach( ann, function ( annotatedVisitEntry ) {
+                var visitEntry = annotatedVisitEntry.visitEntry;
+                if ( visitEntry.role === "noDescription" )
+                    return;
+                addTimestamp( visitEntry.temporalFact.startTime );
+                addTimestamp( visitEntry.temporalFact.stopTime );
+            } );
+        } );
+        allTimestamps.sort( function ( a, b ) {
+            return a - b;
+        } );
+        var allTimestampsIndexObj = {};
+        arrEach( allTimestamps, function ( ts, i ) {
+            allTimestampsIndexObj[ ts ] = i;
+        } );
+        
+        function cellData( ann ) {
+            var result =
+                // This includes
+                // `Math.max( 0, allTimestamps.length - 1 )` entries
+                // for the timestamped segments, plus one more entry
+                // for the `noDescription` entry.
+                numMap( Math.max( 0, allTimestamps.length - 1 ) + 1,
+                    function ( i ) {
+                        return { type: "absent" };
+                    } );
+            
+            function setResult( i, val ) {
+                if ( result[ i ].type !== "absent" )
+                    throw new Error();
+                result[ i ] = val;
+            }
+            
+            arrEach( ann, function ( annotatedVisitEntry ) {
+                var visitEntry = annotatedVisitEntry.visitEntry;
+                if ( visitEntry.role === "noDescription" ) {
+                    setResult( result.length - 1, {
+                        type: "present",
+                        height: 1,
+                        annotatedVisitEntry: annotatedVisitEntry
+                    } );
+                } else {
+                    var startIndex = allTimestampsIndexObj[
+                        visitEntry.temporalFact.startTime ];
+                    var height =
+                        allTimestampsIndexObj[
+                            visitEntry.temporalFact.stopTime ] -
+                        startIndex;
+                    if ( height < 1 )
+                        throw new Error();
+                    setResult( startIndex, {
+                        type: "present",
+                        height: height,
+                        annotatedVisitEntry: annotatedVisitEntry
+                    } );
+                }
+            } );
+            return result;
+        }
+        
+        var hereCells = cellData( hereAnn );
+        var focusCells = cellData( focusAnn );
+        var n = hereCells.length;
+        if ( n !== focusCells.length )
+            throw new Error();
+        var tbody = appendDom( "tbody" );
+        function makeContentFromCellData( className, cell ) {
+            if ( cell.type === "absent" ) {
+                return [];
+            } else if ( cell.type === "present" ) {
+                // TODO: A table element's `rowspan` must be between 1
+                // and 0xFFFE, inclusive, to have the usual behavior.
+                // Figure out what to do for heights outside that
+                // range.
+                if ( !(1 <= cell.height && cell.height <= 0xFFFE) )
+                    throw new Error();
+                return appendDom( "td", {
+                    rowspan: "" + cell.height,
+                    class: className + " " +
+                        makeClassesFromAnnotatedVisitEntry(
+                            cell.annotatedVisitEntry )
+                }, makeContentFromAnnotatedVisitEntry(
+                    cell.annotatedVisitEntry
+                ) );
+            } else {
+                throw new Error();
+            }
+        }
+        for ( var i = 0; i < n; i++ )
+            appendDom( tbody,
+                appendDom( "tr",
+                    makeContentFromCellData(
+                        "here-column", hereCells[ i ] ),
+                    makeContentFromCellData(
+                        "focus-column", focusCells[ i ] ) ) );
+        
+        return appendDom( "table", tbody );
     }
     function getMostRecentTemporalFact(
         stopEarlierThanTime, checkFact ) {
@@ -511,17 +668,18 @@ function initContriverTextClientWidget(
             isScrolledToBottom( elements.hereEl );
         var focusWasScrolledToBottom =
             isScrolledToBottom( elements.focusEl );
+        var hereAndFocusWasScrolledToBottom =
+            isScrolledToBottom( elements.hereAndFocusEl );
+        var hereChronicles = loadedFirstPrivy ? getChroniclesHere() :
+            [ { role: "description", temporalFact: {
+                startTime: 0,
+                stopTime: 1,
+                fact: { type: "describesHere", pov: pov,
+                    description: dsc() }
+//                    description: dsc( "((Loading...))" ) }
+            } } ];
         clearDom( elements.hereEl,
-            makeContentFromChronicles(
-                loadedFirstPrivy ?
-                    getChroniclesHere() :
-                    [ { role: "description", temporalFact: {
-                        startTime: 0,
-                        stopTime: 1,
-                        fact: { type: "describesHere", pov: pov,
-                            description: dsc() }
-//                            description: dsc( "((Loading...))" ) }
-                    } } ] ) );
+            makeContentFromChronicles( hereChronicles ) );
         
         function addTab( topic ) {
             appendDom( elements.focusTabsEl,
@@ -551,9 +709,12 @@ function initContriverTextClientWidget(
             addTab( currentFocus );
         }
         removeTabOverflow();
+        var focusChronicles = getChronicles( currentFocus );
         clearDom( elements.focusEl,
-            makeContentFromChronicles(
-                getChronicles( currentFocus ) ) );
+            makeContentFromChronicles( focusChronicles ) );
+        clearDom( elements.hereAndFocusEl,
+            makeContentFromHereAndFocusChronicles(
+                hereChronicles, focusChronicles ) );
         
         clearDom( elements.futureEl );
         if ( loadedFirstPrivy )
@@ -572,6 +733,8 @@ function initContriverTextClientWidget(
             scrollToBottom( elements.hereEl );
         if ( focusWasScrolledToBottom )
             scrollToBottom( elements.focusEl );
+        if ( hereAndFocusWasScrolledToBottom )
+            scrollToBottom( elements.hereAndFocusEl );
     }
     updateUi();
 }
@@ -946,6 +1109,8 @@ window.onload = function () {
     initContriverTextClientWidget( {
         hereEl: document.getElementById( "here-pane" ),
         focusEl: document.getElementById( "focus-content" ),
+        hereAndFocusEl:
+            document.getElementById( "here-and-focus-pane" ),
         focusTabsEl: document.getElementById( "focus-tabs" ),
         futureEl: document.getElementById( "future-pane" )
     }, server.you, serverEvents.listenable, clientEvents.emittable );
