@@ -139,6 +139,58 @@ function arrDedupJson( arr ) {
     return result;
 }
 
+function isString( x ) {
+    return typeof x === "string";
+}
+function isFunction( x ) {
+    return typeof x === "function";
+}
+function isArray( x ) {
+    return {}.toString.call( x ) === "[object Array]";
+}
+function isNode( x ) {
+    return x !== null && typeof x === "object" &&
+        x instanceof Node;
+}
+function appendDom( elOrTagName, var_args ) {
+    var el = isString( elOrTagName ) ?
+        document.createElement( elOrTagName ) :
+        elOrTagName;
+    function appendOneDom( arg ) {
+        if ( isString( arg ) ) {
+            el.appendChild( document.createTextNode( arg ) );
+        } else if ( isArray( arg ) ) {
+            arrEach( arg, function ( item ) {
+                appendOneDom( item );
+            } );
+        } else if ( isNode( arg ) ) {
+            el.appendChild( arg );
+        } else if ( arg !== null && typeof arg === "object" ) {
+            for ( var k in arg ) {
+                if ( objHas( arg, k ) ) {
+                    var v = arg[ k ];
+                    if ( v === null || isString( v ) ) {
+                        el.setAttribute( k, v );
+                    } else if ( isFunction( v ) ) {
+                        el.addEventListener( k, v, !"capture" );
+                    } else {
+                        throw new Error();
+                    }
+                }
+            }
+        } else {
+            throw new Error();
+        }
+    }
+    appendOneDom( [].slice.call( arguments, 1 ) );
+    return el;
+}
+function clearDom( el, var_args ) {
+    while ( el.hasChildNodes() )
+        el.removeChild( el.firstChild );
+    appendDom.apply( null, arguments );
+}
+
 
 // ===== DSL parser ==================================================
 
@@ -192,38 +244,23 @@ function initContriverTextClientWidget(
     
     var currentFocus = "you";
     var currentFocusTabs = [];
-    function createFocusLink( topic ) {
-        var link = document.createElement( "a" );
-        link.setAttribute( "href", "#" );
-        link.onclick = function () {
+    function createFocusLink( topic, var_args ) {
+        var rest = [].slice.call( arguments, 1 );
+        return appendDom( "a", { href: "#", click: function () {
             setFocus( topic );
             return false;
-        };
-        return link;
+        } }, rest );
     }
-    function clearDom( el ) {
-        while ( el.hasChildNodes() )
-            el.removeChild( el.firstChild );
+    function makeContentFromDescription( content ) {
+        return appendDom( "div", arrMap( content, function ( para ) {
+            return appendDom( "p", arrMap( para, function ( span ) {
+                var spanText = "" + span.text;
+                return span.link === null ? spanText :
+                    createFocusLink( span.link.val, spanText );
+            } ) );
+        } ) );
     }
-    function setContentToDescription( containerEl, content ) {
-        clearDom( containerEl );
-        var innerContainerEl = document.createElement( "div" );
-        arrEach( content, function ( para ) {
-            var paraEl = document.createElement( "p" );
-            arrEach( para, function ( span ) {
-                var spanEl = document.createTextNode( span.text );
-                if ( span.link !== null ) {
-                    var newSpanEl = createFocusLink( span.link.val );
-                    newSpanEl.appendChild( spanEl );
-                    spanEl = newSpanEl;
-                }
-                paraEl.appendChild( spanEl );
-            } );
-            innerContainerEl.appendChild( paraEl );
-        } );
-        containerEl.appendChild( innerContainerEl );
-    }
-    function setContentToChronicles( containerEl, content ) {
+    function makeContentFromChronicles( content ) {
         
         var annotatedDescriptionBefore = null;
         var annotatedContent = arrMap( content, function ( visit ) {
@@ -250,66 +287,66 @@ function initContriverTextClientWidget(
         } );
         
         
-        clearDom( containerEl );
-        var innerContainerEl = document.createElement( "div" );
-        
         var lastDescriptionEl = null;
-        arrEach( annotatedContent, function ( visit ) {
-            var visitEl = document.createElement( "div" );
-            visitEl.className = "visit";
+        var containerEl = appendDom( "div", {
+        }, arrMap( annotatedContent, function ( visit ) {
             var isFirstVisitEntry = true;
             var lastVisitEntryEl = null;
-            arrEach( visit, function ( annotatedVisitEntry ) {
+            var visitEl = appendDom( "div", {
+                class: "visit"
+            }, arrMap( visit, function ( annotatedVisitEntry ) {
                 var visitEntry = annotatedVisitEntry.visitEntry;
                 if ( visitEntry.role === "chronicle" ) {
-                    var chronicleEl = document.createElement( "div" );
-                    chronicleEl.className = "chronicle" +
-                        (isFirstVisitEntry ?
-                            " first-visit-entry" : "");
-                    setContentToDescription( chronicleEl,
-                        visitEntry.temporalFact.fact.chronicle );
-                    visitEl.appendChild( chronicleEl );
+                    var chronicleEl = appendDom( "div", {
+                        class: "chronicle" +
+                            (isFirstVisitEntry ?
+                                " first-visit-entry" : "")
+                    }, makeContentFromDescription(
+                        visitEntry.temporalFact.fact.chronicle
+                    ) );
                     lastVisitEntryEl = chronicleEl;
+                    isFirstVisitEntry = false;
+                    return chronicleEl;
                 } else if ( visitEntry.role === "description" ) {
-                    var descriptionEl =
-                        document.createElement( "div" );
-                    descriptionEl.className = "description" +
-                        (isFirstVisitEntry ?
-                            " first-visit-entry" : "");
-                    if ( annotatedVisitEntry.sameAsBefore
-                        && annotatedVisitEntry.sameAsAfter )
-                        descriptionEl.className += " redundant";
-                    setContentToDescription( descriptionEl,
-                        visitEntry.temporalFact.fact.description );
-                    visitEl.appendChild( descriptionEl );
+                    var descriptionEl = appendDom( "div", {
+                        class: "description" +
+                            (isFirstVisitEntry ?
+                                " first-visit-entry" : "") +
+                            (annotatedVisitEntry.sameAsBefore
+                                && annotatedVisitEntry.sameAsAfter ?
+                                " redundant" : "")
+                    }, makeContentFromDescription(
+                        visitEntry.temporalFact.fact.description
+                    ) );
                     lastDescriptionEl = descriptionEl;
                     lastVisitEntryEl = descriptionEl;
+                    isFirstVisitEntry = false;
+                    return descriptionEl;
                 } else {
                     throw new Error();
                 }
-                isFirstVisitEntry = false;
-            } );
+            } ) );
             if ( lastVisitEntryEl !== null )
                 lastVisitEntryEl.className += " last-visit-entry";
-            innerContainerEl.appendChild( visitEl );
-        } );
+            return visitEl;
+        } ) );
         
         if ( lastDescriptionEl === null ) {
-            var visitEl = document.createElement( "div" );
-            visitEl.className = "visit";
-            var descriptionEl = document.createElement( "div" );
-            descriptionEl.className =
-                "description first-visit-entry last-visit-entry";
-            setContentToDescription( descriptionEl,
-                dsc( "((No description at the moment...))" ) );
-            visitEl.appendChild( descriptionEl );
+            var descriptionEl = appendDom( "div", {
+                class:
+                    "description first-visit-entry last-visit-entry"
+            }, makeContentFromDescription(
+                dsc( "((No description at the moment...))" )
+            ) );
             lastDescriptionEl = descriptionEl;
-            innerContainerEl.appendChild( visitEl );
+            appendDom( containerEl,
+                appendDom( "div", { class: "visit" },
+                    descriptionEl ) );
         }
         
         lastDescriptionEl.className += " last-description";
         
-        containerEl.appendChild( innerContainerEl );
+        return containerEl;
     }
     function getMostRecentTemporalFact(
         stopEarlierThanTime, checkFact ) {
@@ -474,27 +511,25 @@ function initContriverTextClientWidget(
             isScrolledToBottom( elements.hereEl );
         var focusWasScrolledToBottom =
             isScrolledToBottom( elements.focusEl );
-        setContentToChronicles( elements.hereEl,
-            loadedFirstPrivy ?
-                getChroniclesHere() :
-                [ { role: "description", temporalFact: {
-                    startTime: 0,
-                    stopTime: 1,
-                    fact: { type: "describesHere", pov: pov,
-                        description: dsc() }
-//                        description: dsc( "((Loading...))" ) }
-                } } ] );
+        clearDom( elements.hereEl,
+            makeContentFromChronicles(
+                loadedFirstPrivy ?
+                    getChroniclesHere() :
+                    [ { role: "description", temporalFact: {
+                        startTime: 0,
+                        stopTime: 1,
+                        fact: { type: "describesHere", pov: pov,
+                            description: dsc() }
+//                            description: dsc( "((Loading...))" ) }
+                    } } ] ) );
         
         function addTab( topic ) {
-            var tabEl = document.createElement( "li" );
-            if ( topic === currentFocus )
-                tabEl.className = "active";
-            var tabLinkEl = createFocusLink( topic );
-            tabLinkEl.appendChild(
-                document.createTextNode(
-                    forceMostRecentTitle( topic ) ) );
-            tabEl.appendChild( tabLinkEl );
-            elements.focusTabsEl.appendChild( tabEl );
+            appendDom( elements.focusTabsEl,
+                appendDom( "li", {
+                    class: topic === currentFocus ? "active" : null
+                }, createFocusLink( topic,
+                    "" + forceMostRecentTitle( topic )
+                ) ) );
         }
         function removeTabOverflow() {
             while ( elements.focusTabsEl.hasChildNodes()
@@ -516,22 +551,22 @@ function initContriverTextClientWidget(
             addTab( currentFocus );
         }
         removeTabOverflow();
-        setContentToChronicles( elements.focusEl,
-            getChronicles( currentFocus ) );
+        clearDom( elements.focusEl,
+            makeContentFromChronicles(
+                getChronicles( currentFocus ) ) );
         
         clearDom( elements.futureEl );
         if ( loadedFirstPrivy )
             arrEach( getCurrentFacts(), function ( rel ) {
                 if ( !(rel.type === "can" && rel.pov === pov) )
                     return;
-                var button = document.createElement( "button" );
-                button.appendChild(
-                    document.createTextNode( "" + rel.label ) );
-                button.onclick = function () {
-                    clientEmittable.emit( { type: "act",
-                        actor: pov, action: rel.action } );
-                };
-                elements.futureEl.appendChild( button );
+                appendDom( elements.futureEl,
+                    appendDom( "button", "" + rel.label, {
+                        click: function () {
+                            clientEmittable.emit( { type: "act",
+                                actor: pov, action: rel.action } );
+                        }
+                    } ) );
             } );
         if ( hereWasScrolledToBottom )
             scrollToBottom( elements.hereEl );
