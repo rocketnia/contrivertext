@@ -655,27 +655,44 @@ function initContriverTextClientWidget(
         currentFocus = topic;
         updateUi();
     }
-    function isScrolledToBottom( el ) {
+    function getScrollState( el ) {
         var forgivenessPx = 10;
-        return el.scrollHeight - el.clientHeight - el.scrollTop <=
-            forgivenessPx;
+        var maxScrollTop = el.scrollHeight - el.clientHeight;
+        var scrollTop = el.scrollTop;
+        return {
+            atBottom: maxScrollTop - scrollTop <= forgivenessPx,
+            
+            // NOTE: This can result in NaN, but it doesn't matter.
+            fraction: scrollTop / maxScrollTop
+        };
     }
-    function scrollToBottom( el ) {
-        el.scrollTop = el.scrollHeight;
+    function restoreScrollState( scrollState, el ) {
+        var maxScrollTop = el.scrollHeight - el.clientHeight;
+        el.scrollTop = maxScrollTop *
+            (scrollState.atBottom ? 1 : scrollState.fraction);
     }
     function updateUi() {
         
+        var wasScrollingCombined = "true" ===
+            elements.contriverTextClientEl.getAttribute(
+                "data-combined-scrolling" );
+        var nowScrollingCombined =
+            elements.combinedScrollingCheckboxEl.checked;
+        if ( wasScrollingCombined ) {
+            var hereAndFocusScrollState =
+                getScrollState( elements.hereAndFocusEl );
+            var hereScrollState = hereAndFocusScrollState;
+            var focusScrollState = hereAndFocusScrollState;
+        } else {
+            var hereScrollState = getScrollState( elements.hereEl );
+            var focusScrollState = getScrollState( elements.focusEl );
+            var hereAndFocusScrollState = hereScrollState;
+        }
         elements.contriverTextClientEl.setAttribute(
             "data-combined-scrolling",
             "" + elements.combinedScrollingCheckboxEl.checked );
         
         
-        var hereWasScrolledToBottom =
-            isScrolledToBottom( elements.hereEl );
-        var focusWasScrolledToBottom =
-            isScrolledToBottom( elements.focusEl );
-        var hereAndFocusWasScrolledToBottom =
-            isScrolledToBottom( elements.hereAndFocusEl );
         var hereChronicles = loadedFirstPrivy ? getChroniclesHere() :
             [ { role: "description", temporalFact: {
                 startTime: 0,
@@ -735,12 +752,10 @@ function initContriverTextClientWidget(
                         }
                     } ) );
             } );
-        if ( hereWasScrolledToBottom )
-            scrollToBottom( elements.hereEl );
-        if ( focusWasScrolledToBottom )
-            scrollToBottom( elements.focusEl );
-        if ( hereAndFocusWasScrolledToBottom )
-            scrollToBottom( elements.hereAndFocusEl );
+        restoreScrollState( hereScrollState, elements.hereEl );
+        restoreScrollState( focusScrollState, elements.focusEl );
+        restoreScrollState( hereAndFocusScrollState,
+            elements.hereAndFocusEl );
     }
     updateUi();
     
