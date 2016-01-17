@@ -159,7 +159,6 @@ those instead.
 .contrivertext-book > .here-and-focus-pane {
     position: absolute;
     top: 26px;
-    left: 100%;
     bottom: 0;
     border: 1px solid #bcae66;
     overflow-y: scroll;
@@ -167,7 +166,7 @@ those instead.
 }
 .contrivertext-book > .here-and-focus-pane > table {
     border-collapse: collapse;
-    width: 500px;
+    width: 581px;
 }
 .contrivertext-book > .here-and-focus-pane > table td {
     width: 50%;
@@ -267,11 +266,25 @@ those instead.
     border-radius: 8px;
 }
 
+.contrivertext-book[data-combined-scrolling=true] > .here-pane,
+.contrivertext-book[data-combined-scrolling=true] > .focus-pane >
+    .focus-content,
+.contrivertext-book[data-combined-scrolling=false] >
+    .here-and-focus-pane
+{
+    display: none;
+}
+
 </style>
 </head>
 <body>
 
-<div class="contrivertext-book">
+<div id="contrivertext-client" class="contrivertext-book"
+    data-combined-scrolling="true">
+    <label
+        ><input id="combined-scrolling-checkbox" type="checkbox"
+            checked />
+        Combined scrolling</label>
     <div id="here-pane" class="here-pane"></div>
     <div class="focus-pane">
         <ul id="focus-tabs" class="focus-tabs"></ul>

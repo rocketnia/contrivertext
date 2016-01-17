@@ -664,6 +664,12 @@ function initContriverTextClientWidget(
         el.scrollTop = el.scrollHeight;
     }
     function updateUi() {
+        
+        elements.contriverTextClientEl.setAttribute(
+            "data-combined-scrolling",
+            "" + elements.combinedScrollingCheckboxEl.checked );
+        
+        
         var hereWasScrolledToBottom =
             isScrolledToBottom( elements.hereEl );
         var focusWasScrolledToBottom =
@@ -737,6 +743,12 @@ function initContriverTextClientWidget(
             scrollToBottom( elements.hereAndFocusEl );
     }
     updateUi();
+    
+    appendDom( elements.combinedScrollingCheckboxEl, {
+        change: function () {
+            updateUi();
+        }
+    } );
 }
 
 
@@ -1107,6 +1119,10 @@ window.onload = function () {
     server.addClient(
         server.you, clientEvents.listenable, serverEvents.emittable );
     initContriverTextClientWidget( {
+        contriverTextClientEl:
+            document.getElementById( "contrivertext-client" ),
+        combinedScrollingCheckboxEl:
+            document.getElementById( "combined-scrolling-checkbox" ),
         hereEl: document.getElementById( "here-pane" ),
         focusEl: document.getElementById( "focus-content" ),
         hereAndFocusEl:
