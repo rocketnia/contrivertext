@@ -1147,5 +1147,27 @@ window.onload = function () {
     }, server.you, serverEvents.listenable, clientEvents.emittable );
 };
 
+// This is based on <http://output.jsbin.com/qofuwa/2/quiet>, reached
+// via a link from
+// <https://docs.google.com/document/d/12Ay4s3NWake8Qd6xQeGiYimGJ_gCe0UMDZKwP9Ni4m8/edit?pref=2&pli=1>,
+// reached via a link from
+// <http://stackoverflow.com/questions/29008194/disabling-androids-chrome-pull-down-to-refresh-feature>.
+var preventingPullToRefresh = null;
+appendDom( document, { touchstart: function ( e ) {
+    if ( e.touches.length !== 1 )
+        return;
+    var y = e.touches[ 0 ].clientY;
+    preventingPullToRefresh =
+        window.pageYOffset === 0 ? { y: y } : null;
+} } );
+appendDom( document, { touchmove: function ( e ) {
+    if ( preventingPullToRefresh === null )
+        return;
+    var y = e.touches[ 0 ].clientY;
+    if ( preventingPullToRefresh.y < y )
+        e.preventDefault();
+    preventingPullToRefresh = null;
+} } );
+
 
 })();
