@@ -58,6 +58,15 @@
 .contrivertext-book > .here-pane .visit > .description:first-child {
     margin-top: 0;
 }
+.contrivertext-book > .here-pane .visit > .affordances {
+    display: none;
+}
+.contrivertext-book > .here-pane
+    .visit > .affordances.last-visit-entry
+{
+    display: block;
+    margin-top: 14px;
+}
 
 .contrivertext-book > ul.focus-tabs {
     position: absolute;
@@ -188,13 +197,26 @@ those instead.
 {
     display: none;
 }
+.contrivertext-book > .here-and-focus-pane > table
+    .visit-entry.affordances > div
+{
+    display: none;
+}
+.contrivertext-book > .here-and-focus-pane > table
+    .visit-entry.affordances.last-visit-entry > div
+{
+    display: block;
+}
 .contrivertext-book > .here-and-focus-pane > table td.here-column {
     position: relative;
     z-index: 0;
     padding: 7px 10px;
 }
+.contrivertext-book > .here-and-focus-pane > table td.affordances {
+    padding: 0;
+}
 .contrivertext-book > .here-and-focus-pane > table
-    td.first-visit-entry
+    td.description.first-visit-entry
 {
     padding-top: 10px;
     vertical-align: bottom;
@@ -295,7 +317,6 @@ those instead.
     <div id="focus-content" class="focus-content"></div>
     <div id="here-and-focus-pane" class="here-and-focus-pane"></div>
 </div>
-<div id="future-pane"></div>
 
 <script type="text/javascript" src="contrivertext.js"></script>
 </body>

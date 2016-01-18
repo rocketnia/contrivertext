@@ -210,13 +210,14 @@ function dscPara( descCode ) {
         /^([^\\\[\]]*)\[([^\\\[\] ]*) ([^\\\[\]]*)\](.*)$/.exec(
             descRemaining ) ) {
         
-        result.push( { link: null, text: m[ 1 ] } );
-        result.push( { link: { val: m[ 2 ] }, text: m[ 3 ] } );
+        result.push( { type: "text", text: m[ 1 ] } );
+        result.push(
+            { type: "focusLink", link: m[ 2 ], text: m[ 3 ] } );
         descRemaining = m[ 4 ];
     }
     if ( !/^[^\\\[\]]*$/.test( descRemaining ) )
         throw new Error();
-    result.push( { link: null, text: descRemaining } );
+    result.push( { type: "text", text: descRemaining } );
     return arrRem( result, function ( span ) {
         return span.text.length === 0;
     } );
@@ -259,15 +260,6 @@ function initContriverTextClientWidget(
             e.preventDefault();
             setFocus( topic );
         } }, rest );
-    }
-    function makeContentFromDescription( content ) {
-        return appendDom( "div", arrMap( content, function ( para ) {
-            return appendDom( "p", arrMap( para, function ( span ) {
-                var spanText = "" + span.text;
-                return span.link === null ? spanText :
-                    createFocusLink( span.link.val, spanText );
-            } ) );
-        } ) );
     }
     function annotateChronicles( chronicles ) {
         var annotatedLastDescriptionEntry = null;
@@ -341,16 +333,6 @@ function initContriverTextClientWidget(
             (annotatedVisitEntry.isLastDescription ?
                 " last-description" : "");
         
-        if ( visitEntry.role === "chronicle" ) {
-            result += " chronicle";
-        } else if ( visitEntry.role === "description" ) {
-            result += " description";
-        } else if ( visitEntry.role === "noDescription" ) {
-            result += " description";
-        } else {
-            throw new Error();
-        }
-        
         return result;
     }
     function makeContentFromAnnotatedVisitEntry(
@@ -358,23 +340,91 @@ function initContriverTextClientWidget(
         
         var visitEntry = annotatedVisitEntry.visitEntry;
         
+        function makeContentFromDescription( content ) {
+            return appendDom( "div", arrMap( content,
+                function ( para ) {
+                
+                return appendDom( "p", arrMap( para,
+                    function ( span ) {
+                    
+                    if ( span.type === "text" ) {
+                        return "" + span.text;
+                    } else if ( span.type === "focusLink" ) {
+                        return createFocusLink( span.link,
+                            "" + span.text );
+                        
+                    } else if (
+                        span.type === "affordanceHereButton" ) {
+                        
+                        return appendDom( "button", "" + span.text, {
+                            click: function () {
+                                clientEmittable.emit( {
+                                    type: "actHere",
+                                    actor: pov,
+                                    time: visitEntry.temporalFact.stopTime,
+                                    action: span.link
+                                } );
+                            }
+                        } );
+                        
+                    } else if (
+                        span.type === "affordanceButton" ) {
+                        
+                        // TODO: Actually write something on the
+                        // server side that generates this kind of
+                        // button.
+                        
+                        return appendDom( "button", "" + span.text, {
+                            click: function () {
+                                clientEmittable.emit( {
+                                    type: "act",
+                                    actor: pov,
+                                    time: visitEntry.stopTime,
+                                    topic: span.topic,
+                                    action: span.link
+                                } );
+                            }
+                        } );
+                    } else {
+                        throw new Error();
+                    }
+                } ) );
+            } ) );
+        }
+        
         if ( visitEntry.role === "chronicle" ) {
             var description = visitEntry.temporalFact.fact.chronicle;
+            var descriptionClasses = " chronicle";
+            var affordances = null;
         } else if ( visitEntry.role === "description" ) {
             var description =
                 visitEntry.temporalFact.fact.description;
+            var descriptionClasses = " description";
+            var affordances =
+                visitEntry.temporalFact.fact.affordances;
         } else if ( visitEntry.role === "noDescription" ) {
             var description =
                 dsc( "((No description at the moment...))" );
+            var descriptionClasses = " description";
+            var affordances = null;
         } else {
             throw new Error();
         }
         
-        return appendDom( "div", {
-            class: "visit-entry" +
-                makeClassesFromAnnotatedVisitEntry(
-                    annotatedVisitEntry )
+        var classes =
+            makeClassesFromAnnotatedVisitEntry( annotatedVisitEntry );
+        
+        var result = {};
+        result.descriptionClasses = classes + descriptionClasses;
+        result.description = appendDom( "div", {
+            class: "visit-entry" + result.descriptionClasses
         }, makeContentFromDescription( description ) );
+        result.affordancesClasses = classes + " affordances";
+        result.affordances = affordances === null ? null :
+            { val: appendDom( "div", {
+                class: "visit-entry" + result.affordancesClasses
+            }, makeContentFromDescription( affordances.val ) ) };
+        return result;
     }
     function makeContentFromChronicles( chronicles ) {
         return appendDom( "div", {
@@ -383,9 +433,12 @@ function initContriverTextClientWidget(
             
             return appendDom( "div", {
                 class: "visit"
-            }, arrMap( visit, function ( annotatedVisitEntry ) {
-                return makeContentFromAnnotatedVisitEntry(
+            }, arrMappend( visit, function ( annotatedVisitEntry ) {
+                var content = makeContentFromAnnotatedVisitEntry(
                     annotatedVisitEntry );
+                return [ content.description ].concat(
+                    content.affordances === null ? [] :
+                        [ content.affordances.val ] );
             } ) );
         } ) );
     }
@@ -478,33 +531,48 @@ function initContriverTextClientWidget(
         var tbody = appendDom( "tbody" );
         function makeContentFromCellData( className, cell ) {
             if ( cell.type === "absent" ) {
-                return [];
+                return [ [], [] ];
             } else if ( cell.type === "present" ) {
+                var rowspan = 2 * cell.height - 1;
                 // TODO: A table element's `rowspan` must be between 1
                 // and 0xFFFE, inclusive, to have the usual behavior.
                 // Figure out what to do for heights outside that
                 // range.
-                if ( !(1 <= cell.height && cell.height <= 0xFFFE) )
+                if ( !(1 <= rowspan && rowspan <= 0xFFFE) )
                     throw new Error();
-                return appendDom( "td", {
-                    rowspan: "" + cell.height,
-                    class: className + " " +
-                        makeClassesFromAnnotatedVisitEntry(
-                            cell.annotatedVisitEntry )
-                }, makeContentFromAnnotatedVisitEntry(
-                    cell.annotatedVisitEntry
-                ) );
+                var content = makeContentFromAnnotatedVisitEntry(
+                    cell.annotatedVisitEntry );
+                return [
+                    appendDom( "td", {
+                        rowspan: "" + rowspan,
+                        class: className + " " +
+                            content.descriptionClasses
+                    }, content.description ),
+                    rowspan !== 1 ? [] :
+                        appendDom( "td", {
+                            // NOTE: We could include the `rowspan`,
+                            // but it's already at the default value.
+//                            rowspan: "1",
+                            class: className + " " +
+                                content.affordancesClasses
+                        }, content.affordances === null ? [] :
+                            content.affordances.val )
+                ];
             } else {
                 throw new Error();
             }
         }
-        for ( var i = 0; i < n; i++ )
+        for ( var i = 0; i < n; i++ ) {
+            var hereContent = makeContentFromCellData(
+                "here-column", hereCells[ i ] );
+            var focusContent = makeContentFromCellData(
+                "focus-column", focusCells[ i ] );
             appendDom( tbody,
                 appendDom( "tr",
-                    makeContentFromCellData(
-                        "here-column", hereCells[ i ] ),
-                    makeContentFromCellData(
-                        "focus-column", focusCells[ i ] ) ) );
+                    hereContent[ 0 ], focusContent[ 0 ] ),
+                appendDom( "tr",
+                    hereContent[ 1 ], focusContent[ 1 ] ) );
+        }
         
         return appendDom( "table", tbody );
     }
@@ -761,19 +829,6 @@ function initContriverTextClientWidget(
             makeContentFromHereAndFocusChronicles(
                 hereChronicles, focusChronicles ) );
         
-        clearDom( elements.futureEl );
-        if ( loadedFirstPrivy )
-            arrEach( getCurrentFacts(), function ( rel ) {
-                if ( !(rel.type === "can" && rel.pov === pov) )
-                    return;
-                appendDom( elements.futureEl,
-                    appendDom( "button", "" + rel.label, {
-                        click: function () {
-                            clientEmittable.emit( { type: "act",
-                                actor: pov, action: rel.action } );
-                        }
-                    } ) );
-            } );
         restoreScrollState( hereScrollState, elements.hereEl );
         restoreScrollState( focusScrollState, elements.focusEl );
         restoreScrollState( hereAndFocusScrollState,
@@ -837,11 +892,35 @@ function sampleServer() {
             }
         } );
     }
-    function actionIsPermitted( worldState, actor, action ) {
-        return arrHasJson( getActionsPermitted( worldState ),
-            { actor: actor, action: action } );
+    function getActionsPermittedFor( actor, worldState ) {
+        return arrMappend( getActionsPermitted( worldState ),
+            function ( actionPermitted ) {
+                return actionPermitted.actor === actor ?
+                    [ actionPermitted.action ] : [];
+            } )
     }
-    function actionToUpdate( worldState, actor, action ) {
+    function actionToActionLabel( action ) {
+        if ( action.type === "exit" ) {
+            return action.direction;
+        } else {
+            throw new Error();
+        }
+    }
+    function actionToUpdate( worldState, event ) {
+        var actor = event.actor;
+        var time = event.time;
+        var actionLabel = event.action;
+        if ( getFullPrivy( actor ).stopTime !== time )
+            throw new Error();
+        var matchingActions = arrKeep(
+            getActionsPermittedFor( actor, worldState ),
+            function ( action ) {
+            
+            return actionToActionLabel( action ) === actionLabel;
+        } );
+        if ( matchingActions.length !== 1 )
+            throw new Error();
+        var action = matchingActions[ 0 ];
         if ( action.type === "exit" ) {
             return { actor: actor, action: action, newWorldState:
                 arrRem( worldState, function ( rel ) {
@@ -857,12 +936,9 @@ function sampleServer() {
         return worldUpdates.length === 0 ? initialWorldState :
             worldUpdates[ worldUpdates.length - 1 ].newWorldState;
     }
-    function applyAction( actor, action ) {
-        var worldState = getCurrentWorldState();
-        if ( !actionIsPermitted( worldState, actor, action ) )
-            throw new Error();
+    function applyAction( event ) {
         worldUpdates.push(
-            actionToUpdate( worldState, actor, action ) );
+            actionToUpdate( getCurrentWorldState(), event ) );
     }
     function getInstantaneousVisibility( worldState, pov ) {
         var rels = [];
@@ -886,11 +962,7 @@ function sampleServer() {
         return {
             topics: topics,
             worldState: rels,
-            actions: arrMappend( getActionsPermitted( worldState ),
-                function ( actionPermitted ) {
-                    return actionPermitted.actor === pov ?
-                        [ actionPermitted.action ] : [];
-                } )
+            actions: getActionsPermittedFor( pov, worldState )
         };
     }
     function getActionVisibility(
@@ -951,11 +1023,19 @@ function sampleServer() {
                         actor, av, sv, stateVisibilities[ i + 1 ] ) );
             }
         }
-        return privy;
+        return { stopTime: time, privy: privy };
     }
     var describers = {};
-    function defDescribe( room, describer ) {
-        describers[ "|" + room ] = describer;
+    function defDescribeRoom( room, describer ) {
+        describers[ "|" + room ] = function ( actor, visibility ) {
+            var described = describer( actor, visibility );
+            
+            return {
+                title: described.title,
+                description: described.description,
+                affordances: null
+            };
+        };
     }
     function describe( actor, visibility, topic ) {
         var describer = describers[ "|" + topic ];
@@ -973,63 +1053,18 @@ function sampleServer() {
             return rel.type === "in-room" && rel.element === actor ?
                 { val: rel.container } : false;
         } );
-        return firstRoom ?
-            describe( actor, visibility, firstRoom.val ).description :
-            dsc(
-                "((You don't seem to be located anywhere right now.))"
-            );
-    }
-    defDescribe( "you", function ( actor, visibility ) {
-        return titleDsc( "You",
-            "You're wearing your adventuring clothes today." );
-    } );
-    defDescribe( "thing", function ( actor, visibility ) {
-        return titleDsc( "Thing",
-            "The thing has a [feature feature] on it." );
-    } );
-    defDescribe( "feature", function ( actor, visibility ) {
-        return titleDsc( "Feature",
-            "The feature of the [thing thing] is nondescript." );
-    } );
-    defDescribe( "northwest-room", function ( actor, visibility ) {
-        return titleDsc( "Northwest room",
-            "You're in [northwest-room the northwest room]." );
-    } );
-    defDescribe( "northeast-room", function ( actor, visibility ) {
-        return titleDsc( "Northeast room",
-            "You're in [northeast-room the northeast room]." );
-    } );
-    defDescribe( "southwest-room", function ( actor, visibility ) {
-        return titleDsc( "Southwest room",
-            "You're in [southwest-room the southwest room].",
-            "There is a [thing thing] here." );
-    } );
-    defDescribe( "southeast-room", function ( actor, visibility ) {
-        return titleDsc( "Southeast room",
-            "You're in [southeast-room the southeast room]." );
-    } );
-    
-    function stateVisibilityToPrivyFacts( actor, visibility ) {
-        return [
-            { type: "describesHere", pov: actor,
-                description: describeHere( actor, visibility ) }
-        ].concat( arrMappend( visibility.topics,
-            function ( topic ) {
-            
-            var details = describe( actor, visibility, topic );
-            return [
-                { type: "titles", pov: actor, topic: topic,
-                    title: details.title },
-                { type: "describes", pov: actor, topic: topic,
-                    description: details.description }
-            ];
-        } ), arrMap( visibility.actions, function ( action ) {
-            // TODO: The "can" type carries more information than the
-            // client strictly needs, and yet it doesn't necessarily
-            // contain a good source of information from which to
-            // determine a compass rose. Iterate further upon this
-            // design.
-            
+        var described = firstRoom ?
+            describe( actor, visibility, firstRoom.val ) :
+            {
+                description: dsc(
+                    "((You don't seem to be located anywhere right " +
+                    "now.))"
+                ),
+                affordances: null,
+            };
+        
+        var affordancesPara = [];
+        arrEach( visibility.actions, function ( action ) {
             if ( action.type === "exit" ) {
                 if ( action.direction === "n" ) {
                     var label = "Go north.";
@@ -1045,8 +1080,74 @@ function sampleServer() {
             } else {
                 throw new Error();
             }
-            return { type: "can",
-                pov: actor, label: label, action: action };
+            affordancesPara.push(
+                { type: "affordanceHereButton",
+                    link: actionToActionLabel( action ),
+                    text: label } );
+        } );
+        
+        return {
+            type: "describesHere",
+            pov: actor,
+            description: described.description,
+            affordances: { val:
+                (described.affordances === null ? dsc() :
+                    described.affordances.val
+                ).concat( [ affordancesPara ] ) }
+        };
+    }
+    defDescribeRoom( "you", function ( actor, visibility ) {
+        return titleDsc( "You",
+            "You're wearing your adventuring clothes today." );
+    } );
+    defDescribeRoom( "thing", function ( actor, visibility ) {
+        return titleDsc( "Thing",
+            "The thing has a [feature feature] on it." );
+    } );
+    defDescribeRoom( "feature", function ( actor, visibility ) {
+        return titleDsc( "Feature",
+            "The feature of the [thing thing] is nondescript." );
+    } );
+    defDescribeRoom( "northwest-room",
+        function ( actor, visibility ) {
+        
+        return titleDsc( "Northwest room",
+            "You're in [northwest-room the northwest room]." );
+    } );
+    defDescribeRoom( "northeast-room",
+        function ( actor, visibility ) {
+        
+        return titleDsc( "Northeast room",
+            "You're in [northeast-room the northeast room]." );
+    } );
+    defDescribeRoom( "southwest-room",
+        function ( actor, visibility ) {
+        
+        return titleDsc( "Southwest room",
+            "You're in [southwest-room the southwest room].",
+            "There is a [thing thing] here." );
+    } );
+    defDescribeRoom( "southeast-room",
+        function ( actor, visibility ) {
+        
+        return titleDsc( "Southeast room",
+            "You're in [southeast-room the southeast room]." );
+    } );
+    
+    function stateVisibilityToPrivyFacts( actor, visibility ) {
+        return [
+            describeHere( actor, visibility )
+        ].concat( arrMappend( visibility.topics,
+            function ( topic ) {
+            
+            var details = describe( actor, visibility, topic );
+            return [
+                { type: "titles", pov: actor, topic: topic,
+                    title: details.title },
+                { type: "describes", pov: actor, topic: topic,
+                    description: details.description,
+                    affordances: details.affordances }
+            ];
         } ) );
     }
     function actionVisibilityToPrivyFacts(
@@ -1132,13 +1233,16 @@ function sampleServer() {
             clientListenable.on( function ( event ) {
                 function emitFullPrivy() {
                     serverEmittable.emit( { type: "fullPrivy",
-                        privy: getFullPrivy( "you" ) } );
+                        privy: getFullPrivy( "you" ).privy } );
                 }
                 
                 if ( event.type === "needsFullPrivy" ) {
                     emitFullPrivy();
+                } else if ( event.type === "actHere" ) {
+                    applyAction( event );
+                    emitFullPrivy();
                 } else if ( event.type === "act" ) {
-                    applyAction( event.actor, event.action );
+                    applyAction( event );
                     emitFullPrivy();
                 } else {
                     throw new Error();
@@ -1169,8 +1273,7 @@ window.onload = function () {
         hereAndFocusEl:
             document.getElementById( "here-and-focus-pane" ),
         focusTabsEl: document.getElementById( "focus-tabs" ),
-        focusDropdownEl: document.getElementById( "focus-dropdown" ),
-        futureEl: document.getElementById( "future-pane" )
+        focusDropdownEl: document.getElementById( "focus-dropdown" )
     }, server.you, serverEvents.listenable, clientEvents.emittable );
 };
 
