@@ -88,6 +88,16 @@
     list-style: none;
     background: #f0eacd;
 }
+.contrivertext-book > ul.focus-tabs > li.active:after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #f0eacd;
+}
 .contrivertext-book > ul.focus-tabs > li > a {
     padding: 10px;
     line-height: 27px;
@@ -95,8 +105,8 @@
     color: #000000;
 }
 .contrivertext-book > select.focus-dropdown {
-    z-index: 1;
     position: absolute;
+    z-index: 1;
     top: 5px;
     right: 0;
     width: 19px;
