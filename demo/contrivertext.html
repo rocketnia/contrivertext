@@ -15,7 +15,7 @@
 .contrivertext-book a {
     text-decoration: none;
     font-weight: bold;
-    color: #503fb1;
+    color: #0851bf;
 }
 .contrivertext-book p {
     margin-top: 14px;
@@ -31,9 +31,10 @@
     right: 50%;
     bottom: 0;
     padding: 10px;
-    border: 1px solid #bcae66;
+    border: 1px solid #d4cea4;
+    border-right: none;
     overflow-y: scroll;
-    background: #f0eacd;
+    border-radius: 8px 0 0 8px;
 }
 
 /* TODO: Figure out which of these are really necessary. */
@@ -81,12 +82,12 @@
 .contrivertext-book > ul.focus-tabs > li {
     display: inline-block;
     height: 24px;
-    border: 1px solid #bcae66;
+    border: 1px solid #d4cea4;
     border-radius: 10px 10px 0 0;
     border-radius: 10px 10px 0 0 / 20px 20px 0 0;
     margin: 1px 0 -1px -4px;
     list-style: none;
-    background: #e0d8b4;
+    background: #ecebe1;
 }
 .contrivertext-book > ul.focus-tabs > li.active {
     display: inline-block;
@@ -95,7 +96,7 @@
     height: 25px;
     border-bottom: 0;
     list-style: none;
-    background: #f0eacd;
+    background: #fbfaed;
 }
 .contrivertext-book > ul.focus-tabs > li.active:after {
     content: "";
@@ -106,7 +107,7 @@
     right: 0;
     margin-top: -1px;
     height: 2px;
-    background: #f0eacd;
+    background: #fbfaed;
 }
 .contrivertext-book > ul.focus-tabs > li > a {
     padding: 10px;
@@ -119,7 +120,7 @@
     z-index: 1;
     top: 5px;
     right: 0;
-    width: 19px;
+    width: 20px;
     border: none;
 }
 .contrivertext-book > .focus-content {
@@ -128,10 +129,11 @@
     left: 50%;
     right: 0;
     bottom: 0;
-    border: 1px solid #bcae66;
+    border: 1px solid #d4cea4;
+    border-left: none;
     padding: 10px;
     overflow-y: scroll;
-    background: #f0eacd;
+    background: #fbfaed;
 }
 .contrivertext-book > .focus-content .visit {
     margin-bottom: 5px;
@@ -141,11 +143,8 @@
 }
 .contrivertext-book > .focus-content .visit > .visit-entry {
     padding: 10px;
-    border-left: 1px solid #bcae66;
-    border-right: 1px solid #bcae66;
-}
-.contrivertext-book > .focus-content .visit > .chronicle {
-    background: #ebdfcf;
+    border-left: 1px solid #d4cea4;
+    border-right: 1px solid #d4cea4;
 }
 
 /*
@@ -155,12 +154,12 @@ those instead.
 */
 .contrivertext-book > .focus-content .visit > .visit-entry:first-child
 {
-    border-top: 1px solid #bcae66;
+    border-top: 1px solid #d4cea4;
     border-radius: 8px 8px 0 0;
 }
 .contrivertext-book > .focus-content .visit > .visit-entry:last-child
 {
-    border-bottom: 1px solid #bcae66;
+    border-bottom: 1px solid #d4cea4;
     border-radius: 0 0 8px 8px;
 }
 .contrivertext-book > .focus-content
@@ -174,9 +173,9 @@ those instead.
     top: 26px;
     bottom: 0;
     width: 598px;
-    border: 1px solid #bcae66;
+    border: 1px solid #d4cea4;
     overflow-y: scroll;
-    background: #f0eacd;
+    border-radius: 8px 0 0 8px;
 }
 .contrivertext-book > .here-and-focus-pane > table {
     width: 100%;
@@ -186,11 +185,6 @@ those instead.
     width: 50%;
     padding: 0 10px;
     vertical-align: top;
-}
-.contrivertext-book > .here-and-focus-pane > table
-    .visit-entry.description.redundant
-{
-    background: #ebdfcf;
 }
 .contrivertext-book > .here-and-focus-pane > table
     .visit-entry.description.redundant > *
@@ -240,17 +234,10 @@ those instead.
     left: 10px;
     right: 10px;
     bottom: 0;
-    border-left: 1px solid #bcae66;
-    border-right: 1px solid #bcae66;
+    border-left: 1px solid #d4cea4;
+    border-right: 1px solid #d4cea4;
     margin-left: -1px;
     margin-right: -1px;
-}
-.contrivertext-book > .here-and-focus-pane > table
-    td.focus-column.chronicle:before,
-.contrivertext-book > .here-and-focus-pane > table
-    td.focus-column.description.redundant:before
-{
-    background: #ebdfcf;
 }
 .contrivertext-book > .here-and-focus-pane > table
     td.focus-column.first-visit-entry:before,
@@ -263,27 +250,22 @@ those instead.
     .visit-entry
 {
     padding: 10px;
-    border-left: 1px solid #bcae66;
-    border-right: 1px solid #bcae66;
+    border-left: 1px solid #d4cea4;
+    border-right: 1px solid #d4cea4;
     margin-left: -1px;
     margin-right: -1px;
 }
 .contrivertext-book > .here-and-focus-pane > table td.focus-column
-    .chronicle
-{
-    background: #ebdfcf;
-}
-.contrivertext-book > .here-and-focus-pane > table td.focus-column
     .visit-entry.first-visit-entry
 {
-    border-top: 1px solid #bcae66;
+    border-top: 1px solid #d4cea4;
     margin-top: -1px;
     border-radius: 8px 8px 0 0;
 }
 .contrivertext-book > .here-and-focus-pane > table td.focus-column
     .visit-entry.last-visit-entry
 {
-    border-bottom: 1px solid #bcae66;
+    border-bottom: 1px solid #d4cea4;
     margin-bottom: -1px;
     border-radius: 0 0 8px 8px;
 }
@@ -291,6 +273,118 @@ those instead.
     .visit-entry.first-visit-entry.last-visit-entry
 {
     border-radius: 8px;
+}
+
+.contrivertext-book > .here-pane {
+    background: #fbfaed;
+    background:
+        -moz-linear-gradient(left,
+            transparent 76%,
+            rgba(0, 0, 0, 0.03) 86%,
+            rgba(0, 0, 0, 0.1) 96%,
+            rgba(0, 0, 0, 0.2) 100%),
+        #fbfaed;
+    background:
+        -webkit-linear-gradient(left,
+            transparent 76%,
+            rgba(0, 0, 0, 0.03) 86%,
+            rgba(0, 0, 0, 0.1) 96%,
+            rgba(0, 0, 0, 0.2) 100%),
+        #fbfaed;
+    background:
+        linear-gradient(to right,
+            transparent 76%,
+            rgba(0, 0, 0, 0.03) 86%,
+            rgba(0, 0, 0, 0.1) 96%,
+            rgba(0, 0, 0, 0.2) 100%),
+        #fbfaed;
+}
+.contrivertext-book > .focus-content {
+    background: #fbfaed;
+    background:
+        -moz-linear-gradient(left,
+            rgba(0, 0, 0, 0.2) 0%,
+            rgba(0, 0, 0, 0.1) 1%,
+            transparent 4%),
+        #fbfaed;
+    background:
+        -webkit-linear-gradient(left,
+            rgba(0, 0, 0, 0.2) 0%,
+            rgba(0, 0, 0, 0.1) 1%,
+            transparent 4%),
+        #fbfaed;
+    background:
+        linear-gradient(to right,
+            rgba(0, 0, 0, 0.2) 0%,
+            rgba(0, 0, 0, 0.1) 1%,
+            transparent 4%),
+        #fbfaed;
+}
+.contrivertext-book > .here-and-focus-pane {
+    background: #fbfaed;
+    background:
+        -moz-linear-gradient(left,
+            transparent 35%,
+            rgba(0, 0, 0, 0.03) 40%,
+            rgba(0, 0, 0, 0.1) 45%,
+            rgba(0, 0, 0, 0.2) 47%,
+            rgba(0, 0, 0, 0.1) 48%,
+            transparent 49%),
+        #fbfaed;
+    background:
+        -webkit-linear-gradient(left,
+            transparent 35%,
+            rgba(0, 0, 0, 0.03) 40%,
+            rgba(0, 0, 0, 0.1) 45%,
+            rgba(0, 0, 0, 0.2) 47%,
+            rgba(0, 0, 0, 0.1) 48%,
+            transparent 49%),
+        #fbfaed;
+    background:
+        linear-gradient(to right,
+            transparent 35%,
+            rgba(0, 0, 0, 0.03) 40%,
+            rgba(0, 0, 0, 0.1) 45%,
+            rgba(0, 0, 0, 0.2) 47%,
+            rgba(0, 0, 0, 0.1) 48%,
+            transparent 49%),
+        #fbfaed;
+}
+.contrivertext-book > .focus-content .visit > .chronicle,
+.contrivertext-book > .here-and-focus-pane > table
+    .visit-entry.description.redundant,
+.contrivertext-book > .here-and-focus-pane > table
+    td.focus-column.chronicle:before,
+.contrivertext-book > .here-and-focus-pane > table
+    td.focus-column.description.redundant:before,
+.contrivertext-book > .here-and-focus-pane > table td.focus-column
+    .chronicle
+{
+    background: #e9edf3;
+    background: -moz-linear-gradient(left,
+        #e3e6e3 0%,
+        #e9edf3 3%,
+        #e9edf3 40%,
+        #f3f4f7 60%,
+        #f3f7f8 80%,
+        #f0f2f5 90%,
+        #e9edf3 100%);
+    background: -webkit-linear-gradient(left,
+        #e3e6e3 0%,
+        #e9edf3 3%,
+        #e9edf3 40%,
+        #f3f4f7 60%,
+        #f3f7f8 80%,
+        #f0f2f5 90%,
+        #e9edf3 100%);
+    background: linear-gradient(to right,
+        #e3e6e3 0%,
+        #e9edf3 3%,
+        #e9edf3 40%,
+        #f3f4f7 60%,
+        #f3f7f8 80%,
+        #f0f2f5 90%,
+        #e9edf3 100%);
 }
 
 .contrivertext-book[data-combined-scrolling=true] > .here-pane,
