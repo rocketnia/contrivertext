@@ -175,7 +175,9 @@ function appendDom( elOrTagName, var_args ) {
             for ( var k in arg ) {
                 if ( objHas( arg, k ) ) {
                     var v = arg[ k ];
-                    if ( v === null || isString( v ) ) {
+                    if ( v === null ) {
+                        el.removeAttribute( k );
+                    } else if ( isString( v ) ) {
                         el.setAttribute( k, v );
                     } else if ( isFunction( v ) ) {
                         el.addEventListener( k, v, !"capture" );
@@ -250,6 +252,7 @@ function initContriverTextClientWidget(
     
     var currentFocus = "you";
     var currentFocusTabs = [];
+    var currentFocusOptions = [];
     function createFocusLink( topic, var_args ) {
         var rest = [].slice.call( arguments, 1 );
         return appendDom( "a", { href: "#", click: function ( e ) {
@@ -705,12 +708,20 @@ function initContriverTextClientWidget(
             makeContentFromChronicles( hereChronicles ) );
         
         function addTab( topic ) {
+            var title = "" + forceMostRecentTitle( topic );
             appendDom( elements.focusTabsEl,
                 appendDom( "li", {
                     class: topic === currentFocus ? "active" : null
-                }, createFocusLink( topic,
-                    "" + forceMostRecentTitle( topic )
-                ) ) );
+                }, createFocusLink( topic, title ) ) );
+        }
+        function addOption( topic ) {
+            var title = "" + forceMostRecentTitle( topic );
+            appendDom( elements.focusDropdownEl,
+                appendDom( "option", {
+                    value: topic,
+                    selected:
+                        topic === currentFocus ? "selected" : null
+                }, title ) );
         }
         function removeTabOverflow() {
             while ( elements.focusTabsEl.hasChildNodes()
@@ -722,6 +733,7 @@ function initContriverTextClientWidget(
                 currentFocusTabs.shift();
             }
         }
+        
         clearDom( elements.focusTabsEl );
         arrEach( currentFocusTabs, function ( topic ) {
             addTab( topic );
@@ -732,6 +744,16 @@ function initContriverTextClientWidget(
             addTab( currentFocus );
         }
         removeTabOverflow();
+        
+        clearDom( elements.focusDropdownEl );
+        arrEach( currentFocusOptions, function ( topic ) {
+            addOption( topic );
+        } );
+        if ( !arrHasJson( currentFocusOptions, currentFocus ) ) {
+            currentFocusOptions.push( currentFocus );
+            addOption( currentFocus );
+        }
+        
         var focusChronicles = getChronicles( currentFocus );
         clearDom( elements.focusEl,
             makeContentFromChronicles( focusChronicles ) );
@@ -764,6 +786,10 @@ function initContriverTextClientWidget(
             updateUi();
         }
     } );
+    
+    appendDom( elements.focusDropdownEl, { change: function () {
+        setFocus( elements.focusDropdownEl.value );
+    } } );
 }
 
 
@@ -1143,6 +1169,7 @@ window.onload = function () {
         hereAndFocusEl:
             document.getElementById( "here-and-focus-pane" ),
         focusTabsEl: document.getElementById( "focus-tabs" ),
+        focusDropdownEl: document.getElementById( "focus-dropdown" ),
         futureEl: document.getElementById( "future-pane" )
     }, server.you, serverEvents.listenable, clientEvents.emittable );
 };

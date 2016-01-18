@@ -64,7 +64,7 @@
     z-index: 1;
     top: 0;
     left: 50%;
-    right: 0;
+    right: 19px;
     height: 26px;
     padding-left: 10px;
     margin: 0;
@@ -93,6 +93,14 @@
     line-height: 27px;
     font-weight: normal;
     color: #000000;
+}
+.contrivertext-book > select.focus-dropdown {
+    z-index: 1;
+    position: absolute;
+    top: 5px;
+    right: 0;
+    width: 19px;
+    border: none;
 }
 .contrivertext-book > .focus-content {
     position: absolute;
@@ -272,6 +280,7 @@ those instead.
         Combined scrolling</label>
     <div id="here-pane" class="here-pane"></div>
     <ul id="focus-tabs" class="focus-tabs"></ul>
+    <select id="focus-dropdown" class="focus-dropdown"></select>
     <div id="focus-content" class="focus-content"></div>
     <div id="here-and-focus-pane" class="here-and-focus-pane"></div>
 </div>
