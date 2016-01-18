@@ -59,24 +59,17 @@
     margin-top: 0;
 }
 
-.contrivertext-book > .focus-pane {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    right: 0;
-    bottom: 0;
-}
-.contrivertext-book > .focus-pane > ul.focus-tabs {
+.contrivertext-book > ul.focus-tabs {
     position: absolute;
     z-index: 1;
     top: 0;
-    left: 0;
+    left: 50%;
     right: 0;
     height: 26px;
     padding-left: 10px;
     margin: 0;
 }
-.contrivertext-book > .focus-pane > ul.focus-tabs > li {
+.contrivertext-book > ul.focus-tabs > li {
     display: inline-block;
     height: 24px;
     border: 1px solid #bcae66;
@@ -86,7 +79,7 @@
     list-style: none;
     background: #e0d8b4;
 }
-.contrivertext-book > .focus-pane > ul.focus-tabs > li.active {
+.contrivertext-book > ul.focus-tabs > li.active {
     display: inline-block;
     position: relative;
     z-index: 1;
@@ -95,16 +88,16 @@
     list-style: none;
     background: #f0eacd;
 }
-.contrivertext-book > .focus-pane > ul.focus-tabs > li > a {
+.contrivertext-book > ul.focus-tabs > li > a {
     padding: 10px;
     line-height: 27px;
     font-weight: normal;
     color: #000000;
 }
-.contrivertext-book > .focus-pane > .focus-content {
+.contrivertext-book > .focus-content {
     position: absolute;
     top: 26px;
-    left: 0;
+    left: 50%;
     right: 0;
     bottom: 0;
     border: 1px solid #bcae66;
@@ -112,24 +105,18 @@
     overflow-y: scroll;
     background: #f0eacd;
 }
-.contrivertext-book > .focus-pane > .focus-content .visit {
+.contrivertext-book > .focus-content .visit {
     margin-bottom: 5px;
 }
-.contrivertext-book > .focus-pane > .focus-content
-    .visit > .description.redundant {
-    
+.contrivertext-book > .focus-content .visit > .description.redundant {
     display: none;
 }
-.contrivertext-book > .focus-pane > .focus-content
-    .visit > .visit-entry
-{
+.contrivertext-book > .focus-content .visit > .visit-entry {
     padding: 10px;
     border-left: 1px solid #bcae66;
     border-right: 1px solid #bcae66;
 }
-.contrivertext-book > .focus-pane > .focus-content
-    .visit > .chronicle {
-    
+.contrivertext-book > .focus-content .visit > .chronicle {
     background: #ebdfcf;
 }
 
@@ -138,19 +125,17 @@ TODO: We added the .first-visit-entry and .last-visit-entry classes
 just in case :last-child doesn't work out. See if we should use
 those instead.
 */
-.contrivertext-book > .focus-pane > .focus-content
-    .visit > .visit-entry:first-child
+.contrivertext-book > .focus-content .visit > .visit-entry:first-child
 {
     border-top: 1px solid #bcae66;
     border-radius: 8px 8px 0 0;
 }
-.contrivertext-book > .focus-pane > .focus-content
-    .visit > .visit-entry:last-child
+.contrivertext-book > .focus-content .visit > .visit-entry:last-child
 {
     border-bottom: 1px solid #bcae66;
     border-radius: 0 0 8px 8px;
 }
-.contrivertext-book > .focus-pane > .focus-content
+.contrivertext-book > .focus-content
     .visit > .visit-entry:first-child:last-child
 {
     border-radius: 8px;
@@ -160,13 +145,13 @@ those instead.
     position: absolute;
     top: 26px;
     bottom: 0;
+    width: 598px;
     border: 1px solid #bcae66;
     overflow-y: scroll;
     background: #f0eacd;
 }
 .contrivertext-book > .here-and-focus-pane > table {
     border-collapse: collapse;
-    width: 581px;
 }
 .contrivertext-book > .here-and-focus-pane > table td {
     width: 50%;
@@ -267,8 +252,7 @@ those instead.
 }
 
 .contrivertext-book[data-combined-scrolling=true] > .here-pane,
-.contrivertext-book[data-combined-scrolling=true] > .focus-pane >
-    .focus-content,
+.contrivertext-book[data-combined-scrolling=true] > .focus-content,
 .contrivertext-book[data-combined-scrolling=false] >
     .here-and-focus-pane
 {
@@ -286,10 +270,8 @@ those instead.
             checked />
         Combined scrolling</label>
     <div id="here-pane" class="here-pane"></div>
-    <div class="focus-pane">
-        <ul id="focus-tabs" class="focus-tabs"></ul>
-        <div id="focus-content" class="focus-content"></div>
-    </div>
+    <ul id="focus-tabs" class="focus-tabs"></ul>
+    <div id="focus-content" class="focus-content"></div>
     <div id="here-and-focus-pane" class="here-and-focus-pane"></div>
 </div>
 <div id="future-pane"></div>
