@@ -859,20 +859,6 @@ function sampleServer() {
         initialWorldState.push( { type: "exit", direction: dir2,
             from: room1, to: room2 } );
     }
-    initialWorldState.push( { type: "in-room", element: "you",
-        container: "southwest-room" } );
-    initialWorldState.push( { type: "in-room", element: "thing",
-        container: "southwest-room" } );
-    initialWorldState.push( { type: "in-room", element: "feature",
-        container: "southwest-room" } );
-    addExits( "w", "e", "northwest-room", "northeast-room" );
-    addExits( "w", "e", "southwest-room", "southeast-room" );
-    addExits( "n", "s",
-        "northwest-room",
-        "southwest-room" );
-    addExits( "n", "s",
-        "northeast-room",
-        "southeast-room" );
     function getActionsPermitted( worldState ) {
         return arrMappend( worldState, function ( rel1 ) {
             if ( rel1.type === "in-room" ) {
@@ -1096,6 +1082,21 @@ function sampleServer() {
                 ).concat( [ affordancesPara ] ) }
         };
     }
+    
+    initialWorldState.push( { type: "in-room", element: "you",
+        container: "southwest-room" } );
+    initialWorldState.push( { type: "in-room", element: "thing",
+        container: "southwest-room" } );
+    initialWorldState.push( { type: "in-room", element: "feature",
+        container: "southwest-room" } );
+    addExits( "w", "e", "northwest-room", "northeast-room" );
+    addExits( "w", "e", "southwest-room", "southeast-room" );
+    addExits( "n", "s",
+        "northwest-room",
+        "southwest-room" );
+    addExits( "n", "s",
+        "northeast-room",
+        "southeast-room" );
     defDescribeRoom( "you", function ( actor, visibility ) {
         return titleDsc( "You",
             "You're wearing your adventuring clothes today." );
