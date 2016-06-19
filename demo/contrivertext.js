@@ -335,62 +335,53 @@ function initContriverTextClientWidget(
         
         return result;
     }
+    function makeContentFromDescription( time, content ) {
+        return appendDom( "div", arrMap( content, function ( para ) {
+            return appendDom( "p", arrMap( para, function ( span ) {
+                if ( span.type === "text" ) {
+                    return "" + span.text;
+                } else if ( span.type === "focusLink" ) {
+                    return createFocusLink( span.link,
+                        "" + span.text );
+                } else if ( span.type === "affordanceHereButton" ) {
+                    if ( time === null )
+                        throw new Error();
+                    return appendDom( "button", "" + span.text, {
+                        click: function () {
+                            clientEmittable.emit( {
+                                type: "actHere",
+                                actor: pov,
+                                time: time,
+                                action: span.link
+                            } );
+                        }
+                    } );
+                } else if ( span.type === "affordanceButton" ) {
+                    // TODO: Actually write something on the server
+                    // side that generates this kind of button.
+                    if ( time === null )
+                        throw new Error();
+                    return appendDom( "button", "" + span.text, {
+                        click: function () {
+                            clientEmittable.emit( {
+                                type: "act",
+                                actor: pov,
+                                time: time,
+                                topic: span.topic,
+                                action: span.link
+                            } );
+                        }
+                    } );
+                } else {
+                    throw new Error();
+                }
+            } ) );
+        } ) );
+    }
     function makeContentFromAnnotatedVisitEntry(
         annotatedVisitEntry ) {
         
         var visitEntry = annotatedVisitEntry.visitEntry;
-        
-        function makeContentFromDescription( content ) {
-            return appendDom( "div", arrMap( content,
-                function ( para ) {
-                
-                return appendDom( "p", arrMap( para,
-                    function ( span ) {
-                    
-                    if ( span.type === "text" ) {
-                        return "" + span.text;
-                    } else if ( span.type === "focusLink" ) {
-                        return createFocusLink( span.link,
-                            "" + span.text );
-                        
-                    } else if (
-                        span.type === "affordanceHereButton" ) {
-                        
-                        return appendDom( "button", "" + span.text, {
-                            click: function () {
-                                clientEmittable.emit( {
-                                    type: "actHere",
-                                    actor: pov,
-                                    time: visitEntry.temporalFact.stopTime,
-                                    action: span.link
-                                } );
-                            }
-                        } );
-                        
-                    } else if (
-                        span.type === "affordanceButton" ) {
-                        
-                        // TODO: Actually write something on the
-                        // server side that generates this kind of
-                        // button.
-                        
-                        return appendDom( "button", "" + span.text, {
-                            click: function () {
-                                clientEmittable.emit( {
-                                    type: "act",
-                                    actor: pov,
-                                    time: visitEntry.stopTime,
-                                    topic: span.topic,
-                                    action: span.link
-                                } );
-                            }
-                        } );
-                    } else {
-                        throw new Error();
-                    }
-                } ) );
-            } ) );
-        }
         
         if ( visitEntry.role === "chronicle" ) {
             var description = visitEntry.temporalFact.fact.chronicle;
@@ -413,17 +404,31 @@ function initContriverTextClientWidget(
         
         var classes =
             makeClassesFromAnnotatedVisitEntry( annotatedVisitEntry );
+        var time = visitEntry.role === "noDescription" ? null :
+            visitEntry.temporalFact.stopTime;
         
         var result = {};
         result.descriptionClasses = classes + descriptionClasses;
         result.description = appendDom( "div", {
             class: "visit-entry" + result.descriptionClasses
-        }, makeContentFromDescription( description ) );
+        }, makeContentFromDescription( time, description ) );
         result.affordancesClasses = classes + " affordances";
         result.affordances = affordances === null ? null :
-            { val: appendDom( "div", {
-                class: "visit-entry" + result.affordancesClasses
-            }, makeContentFromDescription( affordances.val ) ) };
+            { val:
+                appendDom( "div", {
+                    class: "visit-entry" + result.affordancesClasses
+                }, makeContentFromDescription(
+                    time, affordances.val ) ) };
+        return result;
+    }
+    function makeContentFiller() {
+        var result = {};
+        result.descriptionClasses = "redundant description";
+        result.description = appendDom( "div", {
+            class: "visit-entry" + result.descriptionClasses
+        }, makeContentFromDescription( null, dsc() ) );
+        result.affordancesClasses = "affordances";
+        result.affordances = null;
         return result;
     }
     function makeContentFromChronicles( chronicles ) {
@@ -496,13 +501,15 @@ function initContriverTextClientWidget(
                 result[ i ] = val;
             }
             
+            var prevStopIndex = null;
             arrEach( ann, function ( annotatedVisitEntry ) {
                 var visitEntry = annotatedVisitEntry.visitEntry;
                 if ( visitEntry.role === "noDescription" ) {
                     setResult( result.length - 1, {
                         type: "present",
                         height: 1,
-                        annotatedVisitEntry: annotatedVisitEntry
+                        annotatedVisitEntry:
+                            { val: annotatedVisitEntry }
                     } );
                 } else {
                     var startIndex = allTimestampsIndexObj[
@@ -513,10 +520,22 @@ function initContriverTextClientWidget(
                         startIndex;
                     if ( height < 1 )
                         throw new Error();
+                    var fact = visitEntry.temporalFact.fact;
+                    if ( prevStopIndex !== null
+                        && prevStopIndex < startIndex
+                        && !(fact.type === "chronicles"
+                            && fact.arriving) )
+                        setResult( prevStopIndex, {
+                            type: "present",
+                            height: startIndex - prevStopIndex,
+                            annotatedVisitEntry: null
+                        } );
+                    prevStopIndex = startIndex + height;
                     setResult( startIndex, {
                         type: "present",
                         height: height,
-                        annotatedVisitEntry: annotatedVisitEntry
+                        annotatedVisitEntry:
+                            { val: annotatedVisitEntry }
                     } );
                 }
             } );
@@ -540,8 +559,10 @@ function initContriverTextClientWidget(
                 // range.
                 if ( !(1 <= rowspan && rowspan <= 0xFFFE) )
                     throw new Error();
-                var content = makeContentFromAnnotatedVisitEntry(
-                    cell.annotatedVisitEntry );
+                var content = cell.annotatedVisitEntry === null ?
+                    makeContentFiller() :
+                    makeContentFromAnnotatedVisitEntry(
+                        cell.annotatedVisitEntry.val );
                 return [
                     appendDom( "td", {
                         rowspan: "" + rowspan,
@@ -656,9 +677,16 @@ function initContriverTextClientWidget(
         var di = 0;
         function process( resultEntry ) {
             var n = resultSegment.length;
-            if ( !(n === 0
-                || resultEntry.temporalFact.startTime <=
-                    resultSegment[ n - 1 ].temporalFact.stopTime) ) {
+            if ( n !== 0
+                && resultEntry.temporalFact.fact.type === "chronicles"
+                && resultEntry.temporalFact.fact.arriving ) {
+                // NOTE: We used to use this check instead of
+                // `arriving`, but it doesn't work for the simple case
+                // where some event just isn't interesting enough to
+                // chronicle for some topic.
+//            if ( !(n === 0
+//                || resultEntry.temporalFact.startTime <=
+//                    resultSegment[ n - 1 ].temporalFact.stopTime) ) {
                 result.push( resultSegment );
                 resultSegment = [];
             }
@@ -853,26 +881,47 @@ function initContriverTextClientWidget(
 function sampleServer() {
     var initialWorldState = [];
     var worldUpdates = [];
+    var afforders = {};
+    var describers = {};
     function addExits( dir1, dir2, room1, room2 ) {
         initialWorldState.push( { type: "exit", direction: dir1,
             from: room2, to: room1 } );
         initialWorldState.push( { type: "exit", direction: dir2,
             from: room1, to: room2 } );
     }
+    function defAffordRoom( room, afforder ) {
+        afforders[ "|" + room ] = afforder;
+    }
+    function defDescribeRoom( room, describer ) {
+        describers[ "|" + room ] = describer;
+    }
+    function getAffordances( actor, worldState, topic ) {
+        var afforder = afforders[ "|" + topic ];
+        return afforder ? afforder( actor, worldState ) : [];
+    }
+    function describe( actor, visibility, topic ) {
+        var describer = describers[ "|" + topic ];
+        return describer( actor, visibility );
+    }
     function getActionsPermitted( worldState ) {
         return arrMappend( worldState, function ( rel1 ) {
             if ( rel1.type === "in-room" ) {
+                var actor = rel1.element;
+                var room = rel1.container;
                 return arrMappend( worldState, function ( rel2 ) {
                     if ( rel2.type === "exit"
-                        && rel2.from === rel1.container ) {
+                        && rel2.from === room ) {
                         // NOTE: We reuse the exit relation as an
                         // action. This might be too clever.
-                        return [
-                            { actor: rel1.element, action: rel2 } ];
+                        return [ { actor: actor, action: rel2 } ];
                     } else {
                         return [];
                     }
-                } );
+                } ).concat(
+                    arrMap( getAffordances( actor, worldState, room ),
+                        function ( action ) {
+                            return { actor: actor, action: action };
+                        } ) );
             } else {
                 return [];
             }
@@ -888,6 +937,8 @@ function sampleServer() {
     function actionToActionLabel( action ) {
         if ( action.type === "exit" ) {
             return action.direction;
+        } else if ( action.type === "misc-action" ) {
+            return action.label;
         } else {
             throw new Error();
         }
@@ -914,6 +965,9 @@ function sampleServer() {
                         rel.element === actor;
                 } ).concat( [ { type: "in-room", element: actor,
                     container: action.to } ] ) };
+        } else if ( action.type = "misc-action" ) {
+            return { actor: actor, action: action, newWorldState:
+                action.newWorldState };
         } else {
             throw new Error();
         }
@@ -1011,26 +1065,11 @@ function sampleServer() {
         }
         return { stopTime: time, privy: privy };
     }
-    var describers = {};
-    function defDescribeRoom( room, describer ) {
-        describers[ "|" + room ] = function ( actor, visibility ) {
-            var described = describer( actor, visibility );
-            
-            return {
-                title: described.title,
-                description: described.description,
-                affordances: null
-            };
-        };
-    }
-    function describe( actor, visibility, topic ) {
-        var describer = describers[ "|" + topic ];
-        return describer( actor, visibility );
-    }
     function titleDsc( title, var_args ) {
         return { title: title,
             description:
-                dsc.apply( null, [].slice.call( arguments, 1 ) ) };
+                dsc.apply( null, [].slice.call( arguments, 1 ) ),
+            affordances: null };
     }
     function describeHere( actor, visibility ) {
         var firstRoom = arrAny( visibility.worldState,
@@ -1067,6 +1106,8 @@ function sampleServer() {
                 } else {
                     throw new Error();
                 }
+            } else if ( action.type === "misc-action" ) {
+                var label = action.description;
             } else {
                 throw new Error();
             }
@@ -1125,6 +1166,19 @@ function sampleServer() {
         return titleDsc( "Northeast room",
             "You're in [northeast-room the northeast room]." );
     } );
+    defAffordRoom( "southwest-room", function ( actor, worldState ) {
+        return [ { type: "misc-action",
+            label: "manipulate-the-thing",
+            description: "Manipulate the thing.",
+            playByPlayAffectedTopics: [ "thing" ],
+            playByPlayMe:
+                "You manipulate the thing. Nothing special happens.",
+            playByPlayNotMe:
+                "Someone manipulates the thing. Nothing special " +
+                "happens.",
+            newWorldState: worldState
+        } ];
+    } );
     defDescribeRoom( "southwest-room",
         function ( actor, visibility ) {
         
@@ -1159,8 +1213,8 @@ function sampleServer() {
         actor, visibility, before, after ) {
         
         var action = visibility.action;
+        var isMe = actor === visibility.actor;
         if ( action.type === "exit" ) {
-            var isMe = actor === visibility.actor;
             var directionPlayByPlaysCardinal = function (
                 directionText, directionOppositeText ) {
                 
@@ -1220,14 +1274,18 @@ function sampleServer() {
             var result = [
                 { type: "chronicles", pov: actor,
                     topic: visibility.actor,
+                    arriving: false,
                     chronicle: dsc( directionPlayByPlays.go ) }
             ];
             if ( isMe ) {
+                result.push( { type: "chroniclesHere", pov: actor,
+                    chronicle: dsc( directionPlayByPlays.go ) } );
                 arrEach( before.topics, function ( topic ) {
                     if ( arrHasJson( after.topics, topic ) )
                         return;
                     result.push( { type: "chronicles", pov: actor,
                         topic: topic,
+                        arriving: false,
                         chronicle: dsc(
                             directionPlayByPlays.leave
                         ) } );
@@ -1237,6 +1295,7 @@ function sampleServer() {
                         return;
                     result.push( { type: "chronicles", pov: actor,
                         topic: topic,
+                        arriving: true,
                         chronicle: dsc(
                             directionPlayByPlays.arrive
                         ) } );
@@ -1244,14 +1303,34 @@ function sampleServer() {
             } else {
                 result.push( { type: "chronicles", pov: actor,
                     topic: action.from,
+                    arriving: false,
                     chronicle: dsc( directionPlayByPlays.leave ) } );
                 result.push( { type: "chronicles", pov: actor,
                     topic: action.to,
+                    arriving: false,
                     chronicle: dsc( directionPlayByPlays.arrive ) } );
             }
+            return result;
+        } else if ( action.type === "misc-action" ) {
+            var playByPlay =
+                isMe ? action.playByPlayMe : action.playByPlayNotMe;
+            var result = [
+                { type: "chronicles", pov: actor,
+                    topic: visibility.actor,
+                    arriving: false,
+                    chronicle: dsc( playByPlay ) }
+            ];
             if ( isMe )
                 result.push( { type: "chroniclesHere", pov: actor,
-                    chronicle: dsc( directionPlayByPlays.go ) } );
+                    chronicle: dsc( playByPlay ) } );
+            arrEach( action.playByPlayAffectedTopics,
+                function ( topic ) {
+                
+                result.push( { type: "chronicles", pov: actor,
+                    topic: topic,
+                    arriving: false,
+                    chronicle: dsc( playByPlay ) } );
+            } );
             return result;
         } else {
             throw new Error();
