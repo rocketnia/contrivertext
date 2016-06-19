@@ -1060,6 +1060,10 @@ function sampleServer() {
                     var label = "Go east.";
                 } else if ( action.direction === "w" ) {
                     var label = "Go west.";
+                } else if ( action.direction === "u" ) {
+                    var label = "Ascend.";
+                } else if ( action.direction === "d" ) {
+                    var label = "Descend.";
                 } else {
                     throw new Error();
                 }
@@ -1156,29 +1160,67 @@ function sampleServer() {
         
         var action = visibility.action;
         if ( action.type === "exit" ) {
+            var isMe = actor === visibility.actor;
+            var directionPlayByPlaysCardinal = function (
+                directionText, directionOppositeText ) {
+                
+                return {
+                    arrive:
+                        (isMe ? "You arrive " : "Someone arrives ") +
+                        "from the " + directionOppositeText + ".",
+                    go:
+                        (isMe ? "You go" : "Someone goes") + " " +
+                        directionText + ".",
+                    leave:
+                        (isMe ? "You leave " : "Someone leaves ") +
+                        "to the " + directionText + "."
+                };
+            };
             if ( action.direction === "n" ) {
-                var directionText = "north";
-                var directionOppositeText = "south";
+                var directionPlayByPlays =
+                    directionPlayByPlaysCardinal( "north", "south" );
             } else if ( action.direction === "s" ) {
-                var directionText = "south";
-                var directionOppositeText = "north";
+                var directionPlayByPlays =
+                    directionPlayByPlaysCardinal( "south", "north" );
             } else if ( action.direction === "e" ) {
-                var directionText = "east";
-                var directionOppositeText = "west";
+                var directionPlayByPlays =
+                    directionPlayByPlaysCardinal( "east", "west" );
             } else if ( action.direction === "w" ) {
-                var directionText = "west";
-                var directionOppositeText = "east";
+                var directionPlayByPlays =
+                    directionPlayByPlaysCardinal( "west", "east" );
+            } else if ( action.direction === "u" ) {
+                var directionPlayByPlays = {
+                    arrive:
+                        (isMe ? "You arrive " : "Someone arrives ") +
+                        "from below.",
+                    go: isMe ? "You ascend." : "Someone ascends.",
+                    
+                    // TODO: See if there's a more natural way to
+                    // phrase this.
+                    leave:
+                        (isMe ? "You leave " : "Someone leaves ") +
+                        "by ascending."
+                };
+            } else if ( action.direction === "d" ) {
+                var directionPlayByPlays = {
+                    arrive:
+                        (isMe ? "You arrive " : "Someone arrives ") +
+                        "from above.",
+                    go: isMe ? "You descend." : "Someone descends.",
+                    
+                    // TODO: See if there's a more natural way to
+                    // phrase this.
+                    leave:
+                        (isMe ? "You leave " : "Someone leaves ") +
+                        "by descending."
+                };
             } else {
                 throw new Error();
             }
-            var isMe = actor === visibility.actor;
             var result = [
                 { type: "chronicles", pov: actor,
                     topic: visibility.actor,
-                    chronicle: dsc(
-                        (isMe ? "You go" : "Someone goes") + " " +
-                        directionText + "."
-                    ) }
+                    chronicle: dsc( directionPlayByPlays.go ) }
             ];
             if ( isMe ) {
                 arrEach( before.topics, function ( topic ) {
@@ -1187,7 +1229,7 @@ function sampleServer() {
                     result.push( { type: "chronicles", pov: actor,
                         topic: topic,
                         chronicle: dsc(
-                            "You leave to the " + directionText + "."
+                            directionPlayByPlays.leave
                         ) } );
                 } );
                 arrEach( after.topics, function ( topic ) {
@@ -1196,28 +1238,20 @@ function sampleServer() {
                     result.push( { type: "chronicles", pov: actor,
                         topic: topic,
                         chronicle: dsc(
-                            "You arrive from the " +
-                            directionOppositeText + "."
+                            directionPlayByPlays.arrive
                         ) } );
                 } );
             } else {
                 result.push( { type: "chronicles", pov: actor,
                     topic: action.from,
-                    chronicle: dsc(
-                        "Someone leaves to the " + directionText + "."
-                    ) } );
+                    chronicle: dsc( directionPlayByPlays.leave ) } );
                 result.push( { type: "chronicles", pov: actor,
                     topic: action.to,
-                    chronicle: dsc(
-                        "Someone arrives from the " +
-                        directionOppositeText + "."
-                    ) } );
+                    chronicle: dsc( directionPlayByPlays.arrive ) } );
             }
             if ( isMe )
                 result.push( { type: "chroniclesHere", pov: actor,
-                    chronicle: dsc(
-                        "You go " + directionText + "."
-                    ) } );
+                    chronicle: dsc( directionPlayByPlays.go ) } );
             return result;
         } else {
             throw new Error();
