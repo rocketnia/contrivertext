@@ -997,6 +997,11 @@ function sampleServer() {
                 
                 topics.push( rel.element );
                 rels.push( rel );
+                
+            } else if ( rel.type === "has-state"
+                && arrHasJson( containers, rel.room ) ) {
+                
+                rels.push( rel );
             }
         } );
         return {
@@ -1127,6 +1132,18 @@ function sampleServer() {
                 ).concat( [ affordancesPara ] ) }
         };
     }
+    function getStateRel( worldState, name ) {
+        var rels = arrKeep( worldState, function ( rel ) {
+            return rel.type === "has-state" && rel.name === name;
+        } );
+        return rels.length === 1 ? rels[ 0 ].state : void 0;
+    }
+    function putStateRel( worldState, room, name, state ) {
+        return arrRem( worldState, function ( rel ) {
+            return rel.type === "has-state" && rel.name === name;
+        } ).concat( [ { type: "has-state",
+            room: room, name: name, state: state } ] );
+    }
     
     initialWorldState.push( { type: "in-room", element: "you",
         container: "southwest-room" } );
@@ -1134,6 +1151,12 @@ function sampleServer() {
         container: "southwest-room" } );
     initialWorldState.push( { type: "in-room", element: "feature",
         container: "southwest-room" } );
+    initialWorldState.push( { type: "in-room", element: "tower",
+        container: "southeast-room" } );
+    initialWorldState.push( { type: "has-state",
+        room: "southeast-room",
+        name: "tower-state",
+        state: "upright" } );
     addExits( "w", "e", "northwest-room", "northeast-room" );
     addExits( "w", "e", "southwest-room", "southeast-room" );
     addExits( "n", "s",
@@ -1153,6 +1176,15 @@ function sampleServer() {
     defDescribeRoom( "feature", function ( actor, visibility ) {
         return titleDsc( "Feature",
             "The feature of the [thing thing] is nondescript." );
+    } );
+    defDescribeRoom( "tower",
+        function ( actor, visibility ) {
+        
+        return titleDsc( "Southeast room",
+            getStateRel( visibility.worldState, "tower-state" ) ===
+                "upright" ?
+                "The tower is upright." :
+                "The tower has been knocked over." );
     } );
     defDescribeRoom( "northwest-room",
         function ( actor, visibility ) {
@@ -1186,11 +1218,32 @@ function sampleServer() {
             "You're in [southwest-room the southwest room].",
             "There is a [thing thing] here." );
     } );
+    defAffordRoom( "southeast-room", function ( actor, worldState ) {
+        var result = [];
+        if ( getStateRel( worldState, "tower-state" ) === "upright" )
+            result.push( { type: "misc-action",
+                label: "knock-over-the-tower",
+                description: "Knock over the tower.",
+                playByPlayAffectedTopics:
+                    [ "tower", "southeast-room" ],
+                playByPlayMe: "You knock over the tower.",
+                playByPlayNotMe: "Someone knocks over the tower.",
+                newWorldState:
+                    putStateRel( worldState,
+                        "southeast-room", "tower-state", "fallen" )
+            } );
+        return result;
+    } );
     defDescribeRoom( "southeast-room",
         function ( actor, visibility ) {
         
         return titleDsc( "Southeast room",
-            "You're in [southeast-room the southeast room]." );
+            "You're in [southeast-room the southeast room].",
+            "There is a [tower tower] here, " +
+            (getStateRel( visibility.worldState, "tower-state" ) ===
+                "upright" ?
+                "standing upright." :
+                "but it's been knocked over.") );
     } );
     
     function stateVisibilityToPrivyFacts( actor, visibility ) {
