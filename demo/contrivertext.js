@@ -943,6 +943,12 @@ function sampleServer() {
             throw new Error();
         }
     }
+    function moveRel( worldState, element, container ) {
+        return arrRem( worldState, function ( rel ) {
+            return rel.type === "in-room" && rel.element === element;
+        } ).concat( [ { type: "in-room", element: element,
+            container: container } ] );
+    }
     function actionToUpdate( worldState, event ) {
         var actor = event.actor;
         var time = event.time;
@@ -960,11 +966,7 @@ function sampleServer() {
         var action = matchingActions[ 0 ];
         if ( action.type === "exit" ) {
             return { actor: actor, action: action, newWorldState:
-                arrRem( worldState, function ( rel ) {
-                    return rel.type === "in-room" &&
-                        rel.element === actor;
-                } ).concat( [ { type: "in-room", element: actor,
-                    container: action.to } ] ) };
+                moveRel( worldState, actor, action.to ) };
         } else if ( action.type = "misc-action" ) {
             return { actor: actor, action: action, newWorldState:
                 action.newWorldState };
@@ -999,7 +1001,9 @@ function sampleServer() {
                 rels.push( rel );
                 
             } else if ( rel.type === "has-state"
-                && arrHasJson( containers, rel.room ) ) {
+                && arrAny( containers, function ( room ) {
+                    return arrHasJson( rel.rooms, room );
+                } ) ) {
                 
                 rels.push( rel );
             }
@@ -1076,13 +1080,14 @@ function sampleServer() {
                 dsc.apply( null, [].slice.call( arguments, 1 ) ),
             affordances: null };
     }
-    function describeHere( actor, visibility ) {
-        var firstRoom = arrAny( visibility.worldState,
-            function ( rel ) {
-            
-            return rel.type === "in-room" && rel.element === actor ?
+    function currentRoom( worldState, element ) {
+        return arrAny( worldState, function ( rel ) {
+            return rel.type === "in-room" && rel.element === element ?
                 { val: rel.container } : false;
         } );
+    }
+    function describeHere( actor, visibility ) {
+        var firstRoom = currentRoom( visibility.worldState, actor );
         var described = firstRoom ?
             describe( actor, visibility, firstRoom.val ) :
             {
@@ -1138,112 +1143,542 @@ function sampleServer() {
         } );
         return rels.length === 1 ? rels[ 0 ].state : void 0;
     }
-    function putStateRel( worldState, room, name, state ) {
+    function putStateRel( worldState, rooms, name, state ) {
         return arrRem( worldState, function ( rel ) {
             return rel.type === "has-state" && rel.name === name;
         } ).concat( [ { type: "has-state",
-            room: room, name: name, state: state } ] );
+            rooms: rooms, name: name, state: state } ] );
     }
     
     initialWorldState.push( { type: "in-room", element: "you",
-        container: "southwest-room" } );
-    initialWorldState.push( { type: "in-room", element: "thing",
-        container: "southwest-room" } );
-    initialWorldState.push( { type: "in-room", element: "feature",
-        container: "southwest-room" } );
-    initialWorldState.push( { type: "in-room", element: "tower",
-        container: "southeast-room" } );
+        container: "beginning" } );
+    initialWorldState.push( { type: "in-room",
+        element: "environmentalizer",
+        container: "living-room" } );
+    initialWorldState.push( { type: "in-room", element: "legs",
+        container: "living-room" } );
     initialWorldState.push( { type: "has-state",
-        room: "southeast-room",
-        name: "tower-state",
-        state: "upright" } );
-    addExits( "w", "e", "northwest-room", "northeast-room" );
-    addExits( "w", "e", "southwest-room", "southeast-room" );
-    addExits( "n", "s",
-        "northwest-room",
-        "southwest-room" );
-    addExits( "n", "s",
-        "northeast-room",
-        "southeast-room" );
+        rooms: [ "living-room", "ending-1" ],
+        name: "environmentalizer-state",
+        state: "intact" } );
+    initialWorldState.push( { type: "has-state",
+        rooms: [ "living-room", "ending-1", "attic" ],
+        name: "fan-state",
+        state: "incomplete" } );
+    initialWorldState.push( { type: "has-state",
+        rooms: [ "living-room", "ending-1", "bathroom" ],
+        name: "sink-state",
+        state: "incomplete" } );
+    initialWorldState.push( { type: "has-state",
+        rooms: [ "living-room", "ending-1", "kitchen" ],
+        name: "stove-state",
+        state: "incomplete" } );
+    addExits( "w", "e", "attic", "bathroom" );
+    addExits( "w", "e", "living-room", "kitchen" );
+    addExits( "u", "d",
+        "attic",
+        "living-room" );
+    addExits( "u", "d",
+        "bathroom",
+        "kitchen" );
     defDescribeRoom( "you", function ( actor, visibility ) {
+        var room = currentRoom( visibility.worldState, actor );
+        
         return titleDsc( "You",
-            "You're wearing your adventuring clothes today." );
+            "Today you're wearing a suede maroon slacks and jacket " +
+            "combo over a white turtleneck. A sapphire necklace " +
+            "tops it off." +
+            (room !== null
+                && (room.val === "living-room"
+                    || room.val === "attic"
+                    || room.val === "bathroom"
+                    || room.val === "kitchen") ?
+                " The camera crew follows behind you." :
+                "") );
     } );
-    defDescribeRoom( "thing", function ( actor, visibility ) {
-        return titleDsc( "Thing",
-            "The thing has a [feature feature] on it." );
+    defDescribeRoom( "beginning", function ( actor, visibility ) {
+        return titleDsc( "((Beginning))",
+            "Symple Home Renovations",
+            "Rocketnia 2016",
+            "Version 1",
+            "It's time for another episode of Symple Home " +
+            "Renovations, and [you you]'re the host. The two " +
+            "residents of this home are already safely on the " +
+            "front lawn, where some of the camera crew will stay " +
+            "behind and record their reactions to the strange " +
+            "noises, smells, and energies come out of the house " +
+            "while you're in there.",
+            "Your supplies under one arm, you're ready to begin." );
     } );
-    defDescribeRoom( "feature", function ( actor, visibility ) {
-        return titleDsc( "Feature",
-            "The feature of the [thing thing] is nondescript." );
-    } );
-    defDescribeRoom( "tower",
-        function ( actor, visibility ) {
-        
-        return titleDsc( "Southeast room",
-            getStateRel( visibility.worldState, "tower-state" ) ===
-                "upright" ?
-                "The tower is upright." :
-                "The tower has been knocked over." );
-    } );
-    defDescribeRoom( "northwest-room",
-        function ( actor, visibility ) {
-        
-        return titleDsc( "Northwest room",
-            "You're in [northwest-room the northwest room]." );
-    } );
-    defDescribeRoom( "northeast-room",
-        function ( actor, visibility ) {
-        
-        return titleDsc( "Northeast room",
-            "You're in [northeast-room the northeast room]." );
-    } );
-    defAffordRoom( "southwest-room", function ( actor, worldState ) {
+    defAffordRoom( "beginning", function ( actor, worldState ) {
         return [ { type: "misc-action",
-            label: "manipulate-the-thing",
-            description: "Manipulate the thing.",
-            playByPlayAffectedTopics: [ "thing" ],
-            playByPlayMe:
-                "You manipulate the thing. Nothing special happens.",
-            playByPlayNotMe:
-                "Someone manipulates the thing. Nothing special " +
-                "happens.",
-            newWorldState: worldState
+            label: "open-the-front-door",
+            description: "Open the front door.",
+            playByPlayAffectedTopics:
+                [ "living-room", "environmentalizer", "legs" ],
+            playByPlayMe: dsc(
+                "You open the front door, which the camera crew " +
+                "closes behind you again. You set your " +
+                "[environmentalizer environmentalizer] on the " +
+                "table." ),
+            playByPlayNotMe: dsc(
+                "((Someone opens the front door, etc.))" ),
+            newWorldState: moveRel( worldState, "you", "living-room" )
         } ];
     } );
-    defDescribeRoom( "southwest-room",
+    defDescribeRoom( "living-room", function ( actor, visibility ) {
+        function countState( name ) {
+            return getStateRel( visibility.worldState, name ) ===
+                "complete" ?
+                1 : 0;
+        }
+        
+        var numLights =
+            countState( "fan-state" ) +
+            countState( "sink-state" ) +
+            2 * countState( "stove-state" ) +
+            countState( "stove-state" );
+        
+        return titleDsc( "Living room",
+            "You're in [living-room the living room]. A stairway " +
+            "leads up to the attic. Your [environmentalizer Symple " +
+            "sympathetic environmentalizer] is " +
+            (getStateRel( visibility.worldState,
+                "environmentalizer-state" ) === "intact" ?
+                "perched on the dining table." +
+                (numLights === 1 ?
+                    " You notice it has a flashing light." :
+                    numLights === 2 ?
+                        " You notice it has two flashing lights." :
+                    numLights === 3 ?
+                        " It has three flashing lights." :
+                    numLights === 4 ?
+                        " All four of its lights are actively " +
+                        "flashing." :
+                        "") :
+                "rattling on the floor by the dining table, " +
+                "flashing several lights.") );
+    } );
+    defDescribeRoom( "environmentalizer",
         function ( actor, visibility ) {
         
-        return titleDsc( "Southwest room",
-            "You're in [southwest-room the southwest room].",
-            "There is a [thing thing] here." );
+        if ( getStateRel( visibility.worldState,
+                "environmentalizer-state" ) ===
+            "fallen" )
+            return titleDsc( "Environmentalizer",
+                "The environmentalizer has fallen to the floor and " +
+                "spun its dials out of whack. Along with the other " +
+                "four meters, a fifth meter blinks: Love. An " +
+                "element of nurture.",
+                
+                "Unlike the others, this meter blinks with a " +
+                "whopping three bars. That's more of an earthquake " +
+                "advisory warning, not what you want to see in a " +
+                "TV production. The camera crew zooms in on it " +
+                "anyway; it's good material." );
+        
+        function isComplete( name ) {
+            return getStateRel( visibility.worldState, name ) ===
+                "complete";
+        }
+        function countState( name ) {
+            return isComplete( name ) ? 1 : 0;
+        }
+        
+        
+        var elementsIncomplete = [];
+        var elementsComplete = [];
+        function completeElement( stateName, elementText ) {
+            (isComplete( stateName ) ?
+                elementsComplete : elementsIncomplete
+            ).push( elementText );
+        }
+        completeElement( "fan-state", "air" );
+        completeElement( "sink-state", "water" );
+        completeElement( "stove-state", "earth" );
+        completeElement( "stove-state", "fire" );
+        
+        function displayList( list ) {
+            if ( list.length === 0 )
+                throw new Error();
+            if ( list.length === 1 )
+                return list[ 0 ];
+            if ( list.length === 2 )
+                return list.join( " and " );
+            return list.slice( 0, list.length - 1 ).join( ", " ) +
+                ", and " + list[ list.length - 1 ];
+        }
+        
+        return titleDsc( "Environmentalizer",
+            "Your Symple sympathetic environmentalizer rests on " +
+            "the dining table, occasionally humming as it lets off " +
+            "excess sympathetic energy from the miscellaneous " +
+            "intentions it detects in [you you] and your camera " +
+            "crew.",
+            "Physically, it's a blocky console standing on [legs " +
+            "two whittled bird legs], with dials and meters on its " +
+            "surface. You've set the dials so meters 1 through 4 " +
+            "display the icons of the four elements of nature. The " +
+            "homeowners would like to renovate with elemental magic.",
+            (elementsComplete.length === 0 ?
+                "For now, all four meters are unlit, indicating a " +
+                "lack of nearby elemental intentions to amplify." :
+                elementsIncomplete.length === 0 ?
+                    "All four meters are lit up and flashing, " +
+                    "which means the renovations are complete." :
+                    "The " +
+                    (elementsComplete.length === 1 ?
+                        "meter " : "meters ") +
+                    "for " + displayList( elementsComplete ) + " " +
+                    (elementsComplete.length === 1 ? "is " : "are ") +
+                    "flashing brightly, but the renovations for " +
+                    displayList( elementsIncomplete ) + " " +
+                    "are still incomplete.") );
     } );
-    defAffordRoom( "southeast-room", function ( actor, worldState ) {
+    defDescribeRoom( "legs", function ( actor, visibility ) {
+        return titleDsc( "Bird legs",
+            "[environmentalizer The environmentalizer]'s whittled " +
+            "bird legs are Symple's trademark motif, but they also " +
+            "serve a function: They catch and amplify wish " +
+            "leylines like a tuning fork and synchronize them with " +
+            "the ground leylines. Hence the term \"sympathetic.\"" );
+    } );
+    defAffordRoom( "living-room", function ( actor, worldState ) {
+        function isComplete( name ) {
+            return getStateRel( worldState, name ) === "complete";
+        }
+        
         var result = [];
-        if ( getStateRel( worldState, "tower-state" ) === "upright" )
+        if ( isComplete( "fan-state" )
+            && isComplete( "sink-state" )
+            && isComplete( "stove-state" ) ) {
+            
+            var newWorldState = worldState;
+            newWorldState =
+                moveRel( newWorldState, "you", "ending-1" );
+            newWorldState = putStateRel( newWorldState,
+                [ "living-room", "ending-1" ],
+                "environmentalizer-state",
+                "fallen" );
+            
+            // Now you can *see* the living room (and its contents),
+            // but the living room description doesn't actually show
+            // in the "here" tab because it would interfere with the
+            // action.
+            newWorldState =
+                moveRel( newWorldState, "living-room", "ending-1" );
+            newWorldState =
+                moveRel( newWorldState,
+                    "environmentalizer", "ending-1" );
+            newWorldState =
+                moveRel( newWorldState, "legs", "ending-1" );
+            
             result.push( { type: "misc-action",
-                label: "knock-over-the-tower",
-                description: "Knock over the tower.",
+                label: "open-the-front-door",
+                description: "Open the front door.",
                 playByPlayAffectedTopics:
-                    [ "tower", "southeast-room" ],
-                playByPlayMe: "You knock over the tower.",
-                playByPlayNotMe: "Someone knocks over the tower.",
+                    [ "living-room", "environmentalizer" ],
+                playByPlayMe: dsc(
+                    "You open the front door, and the two eager " +
+                    "residents rush in.",
+                    
+                    "You explain the function of the Symple " +
+                    "sympathetic environmentalizer and show them " +
+                    "around their like-new home, demontrating all " +
+                    "the wonders it made possible with only a few " +
+                    "simple actions.",
+                    
+                    "They love it. They love you. They love each " +
+                    "other. They... oh. Oh, no. They're courting.",
+                    
+                    "The [environmentalizer environmentalizer] " +
+                    "hums violently, throwing itself off the " +
+                    "table. When it hits the floor, the dials spin " +
+                    "out of place, and one of them lands on love. " +
+                    "The love meter is blinking. It's blinking " +
+                    "with three bars." ),
+                playByPlayNotMe: dsc(
+                    "((Someone opens the front door, etc.))" ),
+                newWorldState: newWorldState
+            } );
+        } else {
+            result.push( { type: "misc-action",
+                label: "open-the-front-door",
+                description: "Open the front door.",
+                playByPlayAffectedTopics: [],
+                playByPlayMe: dsc(
+                    "You can open up the door again to invite the " +
+                    "residents in, but not before you've finished " +
+                    "the renovations." ),
+                playByPlayNotMe: dsc(
+                    "Someone thinks about opening the front door." ),
+                newWorldState: worldState
+            } );
+        }
+        return result;
+    } );
+    defDescribeRoom( "attic", function ( actor, visibility ) {
+        return titleDsc( "Attic",
+            "You're in [attic the attic]. A stairway leads down to " +
+            "the living room. " +
+            (getStateRel( visibility.worldState, "fan-state" ) ===
+                "incomplete" ?
+                "A standing fan sits abandoned and dusty in the " +
+                "corner." :
+                "Turbine-slatted holes in the ceiling provide " +
+                "cushioning for wooly inflatable furniture. A " +
+                "[lightning lightning channel] feeds right through " +
+                "the middle of the room, sending ambient power " +
+                "collected from the rooftop down into the rest of " +
+                "the house.") );
+    } );
+    defDescribeRoom( "lightning", function ( actor, visibility ) {
+        return titleDsc( "Lightning channel",
+            "The lightning channel doesn't just supply electrical " +
+            "power to the home. Its raw arcs also shape themselves " +
+            "to display satellite illusion broadcasts. Right now, " +
+            "it's playing a Symple infomercial. The infomercial is " +
+            "honestly boring, but it's lucky. If your camera crew " +
+            "picked up anything else, [you you]'d have to blur it " +
+            "out in post." );
+    } );
+    defAffordRoom( "attic", function ( actor, worldState ) {
+        var result = [];
+        if ( getStateRel( worldState, "fan-state" ) === "incomplete" )
+            result.push( { type: "misc-action",
+                label: "plug-in-the-fan",
+                description: "Plug in the fan.",
+                playByPlayAffectedTopics: [ "attic", "lightning" ],
+                playByPlayMe: dsc( "You plug in the fan." ),
+                playByPlayNotMe: dsc( "Someone plugs in the fan." ),
                 newWorldState:
                     putStateRel( worldState,
-                        "southeast-room", "tower-state", "fallen" )
+                        [ "living-room", "ending-1", "attic" ],
+                        "fan-state",
+                        "complete"
+                    ).concat( [ {
+                        type: "in-room",
+                        element: "lightning",
+                        container: "attic"
+                    } ] )
             } );
         return result;
     } );
-    defDescribeRoom( "southeast-room",
-        function ( actor, visibility ) {
+    defDescribeRoom( "bathroom", function ( actor, visibility ) {
+        return titleDsc( "Bathroom",
+            "You're in [bathroom the bathroom]. " +
+            (getStateRel( visibility.worldState, "sink-state" ) ===
+                "incomplete" ?
+                "" :
+                "Curtains of water pour down from the walls, " +
+                "cascading into a wide whirlpool at the edges of " +
+                "the room.") + " " +
+            "Between the sink and the shower is a fire pole to the " +
+            "floor below." );
+    } );
+    defAffordRoom( "bathroom", function ( actor, worldState ) {
+        var result = [];
+        if ( getStateRel( worldState, "sink-state" ) ===
+            "incomplete" )
+            result.push( { type: "misc-action",
+                label: "turn-on-the-sink",
+                description: "Turn on the sink.",
+                playByPlayAffectedTopics: [ "bathroom" ],
+                playByPlayMe: dsc( "You turn on the sink." ),
+                playByPlayNotMe: dsc( "Someone turns on the sink." ),
+                newWorldState:
+                    putStateRel( worldState,
+                        [ "living-room", "ending-1", "bathroom" ],
+                        "sink-state",
+                        "complete" )
+            } );
+        return result;
+    } );
+    defDescribeRoom( "kitchen", function ( actor, visibility ) {
+        return titleDsc( "Kitchen",
+            "You're in [kitchen the kitchen]. A fire pole leads up " +
+            "to the room above. " +
+            (getStateRel( visibility.worldState, "stove-state" ) ===
+                "incomplete" ?
+                "There's a stovetop here with some empty clay pots " +
+                "on it. Ooh! Two elements at once." :
+                "The pots ignite with Symple Friendly Fire, a " +
+                "basic eternal flame that consumes only metal " +
+                "kitchen supplies. Soon a colony of microgoblets " +
+                "have arranged themselves in a smelting pattern, " +
+                "melting and casting each other into various " +
+                "shapes, each more fashionable and efficient than " +
+                "the last. They proudly display an interactive " +
+                "catalog of their latest designs.") );
+    } );
+    defAffordRoom( "kitchen", function ( actor, worldState ) {
+        var result = [];
+        if ( getStateRel( worldState, "stove-state" ) ===
+            "incomplete" )
+            result.push( { type: "misc-action",
+                label: "light-the-stove",
+                description: "Light the stove.",
+                playByPlayAffectedTopics: [ "kitchen" ],
+                playByPlayMe: dsc(
+                    "You twist the knobs, and the stovetop burners " +
+                    "light up." ),
+                playByPlayNotMe: dsc(
+                    "Someone twists the knobs, and the stovetop " +
+                    "burners light up." ),
+                newWorldState:
+                    putStateRel( worldState,
+                        [ "living-room", "ending-1", "kitchen" ],
+                        "stove-state",
+                        "complete" )
+            } );
+        return result;
+    } );
+    defDescribeRoom( "ending-1", function ( actor, visibility ) {
+        return titleDsc( "((Ending 1))" );
+    } );
+    defAffordRoom( "ending-1", function ( actor, worldState ) {
+        var playByPlay = dsc(
+            "You all rush out to the front lawn. The lovebirds are " +
+            "flustered and ashamed, but at least they don't make " +
+            "any trouble about it.",
+            
+            "Up in the sky, a vortex of colors coalesces into a " +
+            "dryadoid shape. \"Electricity and garbage! Natural " +
+            "gas and water! Love! Your invoices combined, I am the " +
+            "utility functionary!\"",
+            
+            "You shout back, as though the hovering figure were " +
+            "drowning out your words like a helicopter. \"This " +
+            "house is off the grid now! What do you mean, " +
+            "utilities?\"",
+            
+            "The figure gives off a confident smile and explains, " +
+            "\"Those who can meet their own needs have an " +
+            "obligation to provide for others. Say, have you " +
+            "registered these inventions so the public can " +
+            "benefit? Are they independently certified to be free " +
+            "of harmful effects on the environment?\"" );
         
-        return titleDsc( "Southeast room",
-            "You're in [southeast-room the southeast room].",
-            "There is a [tower tower] here, " +
-            (getStateRel( visibility.worldState, "tower-state" ) ===
-                "upright" ?
-                "standing upright." :
-                "but it's been knocked over.") );
+        return [ { type: "misc-action",
+            label: "out-everybody-out",
+            description: "Out! Everybody out!",
+            playByPlayAffectedTopics: [],
+            playByPlayMe: playByPlay,
+            playByPlayNotMe: playByPlay,
+            newWorldState:
+                moveRel( worldState, "you", "ending-2" )
+        } ];
+    } );
+    defDescribeRoom( "ending-2", function ( actor, visibility ) {
+        return titleDsc( "((Ending 2))" );
+    } );
+    defAffordRoom( "ending-2", function ( actor, worldState ) {
+        var playByPlay = dsc(
+            "\"There's only one way to deal with a Popular Culture " +
+            "subscriber,\" you say. \"To the van!\"",
+            
+            "You all pile into the crew's van, the home residents " +
+            "sheepishly hanging onto the video equipment.",
+            
+            "You pull on your seat belt. As it comes out, other " +
+            "belts emerge from recesses in the van, securing " +
+            "everyone and everything.",
+            
+            "You rev the engine, and the van's own chicken legs " +
+            "spring out and find their balance. You shove the van " +
+            "into gear and slam on the gas." );
+        
+        return [ { type: "misc-action",
+            label: "to-the-van",
+            description: "To the van!",
+            playByPlayAffectedTopics: [],
+            playByPlayMe: playByPlay,
+            playByPlayNotMe: playByPlay,
+            newWorldState:
+                moveRel( worldState, "you", "ending-3" )
+        } ];
+    } );
+    defDescribeRoom( "ending-3", function ( actor, visibility ) {
+        return titleDsc( "((Ending 3))" );
+    } );
+    defAffordRoom( "ending-3", function ( actor, worldState ) {
+        var playByPlay = dsc(
+            "The homeowners go white as the van launches itself " +
+            "through their front door, finally riding up on the " +
+            "dining table and snapping it into splinters. You " +
+            "reach out and pick up the environmentalizer as the " +
+            "house warps around you.",
+            
+            "The living room walls develop hand rails and cup " +
+            "holders, and the floor rises to merge with the van's " +
+            "floor. Lightning surges into the video equipment, and " +
+            "the microgoblets take hold of the engine.",
+            
+            "Outside, a jingle plays, and a small voice announces " +
+            "itself. \"Life, auto, or even home. With State " +
+            "insurance, you're not alone!\"",
+            
+            "You pull the house around and watch as a besuited dog " +
+            "flies up to shake hands with the utility functionary. " +
+            "\"Would you like to exchange information?\"",
+            
+            "\"What information could the State possibly have to " +
+            "offer that isn't...\" but the functionary trails off." );
+        
+        return [ { type: "misc-action",
+            label: "forward",
+            description: "Forward...",
+            playByPlayAffectedTopics: [],
+            playByPlayMe: playByPlay,
+            playByPlayNotMe: playByPlay,
+            newWorldState:
+                moveRel( worldState, "you", "ending-4" )
+        } ];
+    } );
+    defDescribeRoom( "ending-4", function ( actor, visibility ) {
+        return titleDsc( "((Ending 4))" );
+    } );
+    defAffordRoom( "ending-4", function ( actor, worldState ) {
+        var playByPlay = dsc(
+            "You've been fiddling with the controls on the " +
+            "environmentalizer. Now the first five dials all point " +
+            "to love, and the rattling has finally stopped. Seeing " +
+            "all those heart symbols on the console, you start to " +
+            "believe you could return the feeling. The homeowners " +
+            "have incorporated themselves into the video equipment " +
+            "to have some thrilling adventures, which you're " +
+            "certainly going to have to blur out.",
+            
+            "\"What I mean to say is,\" the functionary begins, " +
+            "\"uh, what chat services do you use?\"",
+            
+            "The dog laughs. \"Ah, I chat on basically everything, " +
+            "but usually I'm done within fifteen minutes.",
+            
+            "\"You know, I can be... pretty sustainable.\"",
+            
+            "\"I bet you can! In fact, I have the odds right " +
+            "here.\" The dog pulls out an actuarial table.",
+            
+            "That should be enough. You set out onto the road, " +
+            "headed for an RV lot where you can lay low until the " +
+            "apparitions have to make other appearances. You'll " +
+            "to have a long talk with the homeowners about whether " +
+            "they get to keep your van." );
+        
+        return [ { type: "misc-action",
+            label: "check-on-the-environmentalizer",
+            description: "Check on the environmentalizer.",
+            playByPlayAffectedTopics: [],
+            playByPlayMe: playByPlay,
+            playByPlayNotMe: playByPlay,
+            newWorldState:
+                moveRel( worldState, "you", "ending-5" )
+        } ];
+    } );
+    defDescribeRoom( "ending-5", function ( actor, visibility ) {
+        return titleDsc( "((Ending 5))",
+            "*** End ***" );
     } );
     
     function stateVisibilityToPrivyFacts( actor, visibility ) {
@@ -1371,18 +1806,18 @@ function sampleServer() {
                 { type: "chronicles", pov: actor,
                     topic: visibility.actor,
                     arriving: false,
-                    chronicle: dsc( playByPlay ) }
+                    chronicle: playByPlay }
             ];
             if ( isMe )
                 result.push( { type: "chroniclesHere", pov: actor,
-                    chronicle: dsc( playByPlay ) } );
+                    chronicle: playByPlay } );
             arrEach( action.playByPlayAffectedTopics,
                 function ( topic ) {
                 
                 result.push( { type: "chronicles", pov: actor,
                     topic: topic,
                     arriving: false,
-                    chronicle: dsc( playByPlay ) } );
+                    chronicle: playByPlay } );
             } );
             return result;
         } else {
