@@ -1201,6 +1201,9 @@ function sampleServer() {
             "Symple Home Renovations",
             "Rocketnia 2016",
             "Version 1",
+            "((This is intended as a sample story to showcase the " +
+            "current design of an IF system I've made, " +
+            "ContriverText.))",
             "It's time for another episode of Symple Home " +
             "Renovations, and [you you]'re the host. The two " +
             "residents of this home are already safely on the " +
